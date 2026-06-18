@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "specfuse"
+version = "0.1.0"
+description = "Specfuse umbrella CLI — bridges the pip-installed driver and the Claude Code plugin (init / upgrade)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+  { name = "Specfuse contributors" },
+]
+keywords = ["specfuse", "gate-cycle", "cli", "bridge"]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development",
+]
+# The umbrella depends on the driver. `pip install specfuse` pulls specfuse-loop.
+dependencies = [
+  "specfuse-loop>=0.2.0",
+]
+
+[project.optional-dependencies]
+dev = ["coverage>=7.0", "ruff>=0.6"]
+
+[project.scripts]
+specfuse = "specfuse.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/specfuse/specfuse"
+Source = "https://github.com/specfuse/specfuse"
+Driver = "https://github.com/specfuse/loop"
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.setuptools.packages.find]
+# Contribute to the SHARED `specfuse` PEP 420 namespace (no specfuse/__init__.py) so
+# this package's `specfuse.cli` composes with specfuse-loop's `specfuse.loop` rather
+# than shadowing it. Ship only the umbrella's own modules.
+include = ["specfuse*"]
+namespaces = true

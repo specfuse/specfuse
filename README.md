@@ -22,6 +22,23 @@ The skills drive the **specfuse-loop** driver (`pip install specfuse-loop`); see
 [specfuse/loop](https://github.com/specfuse/loop) for the methodology, the driver,
 and getting-started docs.
 
+## The `specfuse` umbrella CLI
+
+This repo also ships the **`specfuse`** pip package — the umbrella CLI that bridges
+the pip-installed driver and this plugin:
+
+```
+pip install specfuse          # pulls specfuse-loop too
+specfuse upgrade              # pip-upgrade driver + CLI, then points at /plugin update
+specfuse init <repo>          # ensure the driver is installed; print bootstrap steps
+```
+
+`specfuse` contributes to the shared `specfuse.*` import namespace (so
+`specfuse.loop` from the driver and a future `specfuse.orchestrator` coexist). Note:
+fully pip-native scaffolding (`specfuse init` laying down `.specfuse/` templates and
+rules) is deferred — until it ships, scaffolding a new repo still uses the loop's
+`init.sh`; `specfuse upgrade` already owns the pip ↔ plugin bridge.
+
 ## Plugins
 
 | Plugin | What it ships | Source |
