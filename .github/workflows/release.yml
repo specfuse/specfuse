@@ -1,0 +1,78 @@
+# Copyright 2026 Specfuse contributors
+# Licensed under the Apache License, Version 2.0. See LICENSE.
+#
+# Release: on a `v*` tag, build the wheel + sdist for the `specfuse` umbrella CLI,
+# run its test suite against the built artifact, then publish to PyPI via OIDC trusted
+# publishing. The umbrella depends on specfuse-loop (which may be unpublished when this
+# first runs), so the wheel is installed with --no-deps for testing — specfuse.cli does
+# not import the driver at load time (it shells pip at runtime), so its tests need no
+# dependency. Publish order at first release: specfuse-loop first, then specfuse.
+
+name: release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel + sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Install the built wheel (no deps) and run tests
+        run: |
+          python -m venv /tmp/relenv
+          /tmp/relenv/bin/python -m pip install --upgrade pip
+          WHEEL=$(ls dist/*.whl)
+          # --no-deps: specfuse-loop may be unpublished at first release; cli tests
+          # don't need it (the driver is only invoked via pip at runtime, mocked here).
+          /tmp/relenv/bin/python -m pip install --no-deps "$WHEEL"
+          /tmp/relenv/bin/python -c "import specfuse.cli as c; print('import OK', c.__version__)"
+          /tmp/relenv/bin/specfuse --version
+          # Run the test suite from the repo (against the installed package).
+          /tmp/relenv/bin/python -m unittest discover -s tests -v
+
+      - name: Tag/version agreement check
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          CLI=$(python -c "import re;print(re.search(r'__version__\s*=\s*\"([^\"]+)\"',open('specfuse/cli.py').read()).group(1))")
+          echo "tag=$TAG pyproject=$PKG cli=$CLI"
+          test "$TAG" = "$PKG" || { echo "::error::tag v$TAG != pyproject version $PKG"; exit 1; }
+          test "$TAG" = "$CLI" || { echo "::error::tag v$TAG != cli __version__ $CLI"; exit 1; }
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI (trusted publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
