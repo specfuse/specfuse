@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace-manifest.json",
+  "name": "specfuse",
+  "owner": {
+    "name": "Specfuse contributors"
+  },
+  "description": "Claude Code plugins for the Specfuse gate-cycle methodology (loop today; orchestrator and future products reuse this marketplace).",
+  "plugins": [
+    {
+      "name": "specfuse",
+      "source": "./plugins/specfuse"
+    }
+  ]
+}
