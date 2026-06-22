@@ -29,10 +29,17 @@ This repo also ships the **`specfuse`** pip package — the umbrella CLI that br
 the pip-installed driver and this plugin:
 
 ```
-pip install specfuse          # pulls specfuse-loop too (gives specfuse / specfuse-loop / specfuse-lint)
+pipx install specfuse         # recommended (CLI app); pulls specfuse-loop too
+#   gives you: specfuse / specfuse-loop / specfuse-lint
+#   (or, inside a venv you control: python3 -m pip install specfuse)
 specfuse init <repo>          # scaffold .specfuse/ + wire .claude/ (--dry-run previews)
 specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade driver + CLI, point at /plugin update
 ```
+
+> A bare `pip install` into a system Python is blocked on PEP-668
+> externally-managed environments (Debian/Ubuntu, Homebrew). Use `pipx` (then
+> `pipx upgrade specfuse`) or a virtualenv, so `specfuse-loop` / `specfuse-lint`
+> land on PATH for the gate commands to find.
 
 `specfuse init` lays down `.specfuse/` (templates, rules, docs, `verification.yml`)
 and merge-safely wires `.claude/` (including this plugin's config) — pip-native
