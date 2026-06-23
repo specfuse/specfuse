@@ -31,7 +31,7 @@ from pathlib import Path
 
 from specfuse.loop import scaffold
 
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 MARKETPLACE = "specfuse/specfuse"
 PLUGIN = "specfuse@specfuse"
@@ -113,7 +113,12 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
             tmp_target.mkdir()
             src = target / ".specfuse"
             if src.exists():
-                shutil.copytree(src, tmp_target / ".specfuse")
+                # symlinks=True copies links as links (don't follow); without it,
+                # a legacy init.sh scaffold's dangling .specfuse/skills/* symlinks
+                # make copytree raise on the missing targets. ignore_dangling_symlinks
+                # is belt-and-suspenders for the same case.
+                shutil.copytree(src, tmp_target / ".specfuse",
+                                symlinks=True, ignore_dangling_symlinks=True)
             try:
                 written = scaffold.upgrade_specfuse(tmp_target, ci_check=ci_check)
             except scaffold.ScaffoldDowngradeError as exc:
