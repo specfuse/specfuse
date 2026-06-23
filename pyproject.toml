@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specfuse"
-version = "0.2.2"
+version = "0.2.3"
 description = "Specfuse umbrella CLI — bridges the pip-installed driver and the Claude Code plugin (init / upgrade)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -33,6 +33,14 @@ dev = ["coverage>=7.0", "ruff>=0.6"]
 
 [project.scripts]
 specfuse = "specfuse.cli:main"
+# Re-export the driver's console scripts so `pipx install specfuse` exposes all
+# three on PATH. pipx only surfaces the installed package's OWN entry points,
+# not its dependencies' — without these, `specfuse-loop`/`specfuse-lint` (from
+# the specfuse-loop dep) would be hidden and users would have to install the
+# driver separately or pass --include-deps. The targets resolve against the
+# specfuse.loop modules the pinned specfuse-loop>=0.3.2 dependency provides.
+specfuse-loop = "specfuse.loop.loop:main"
+specfuse-lint = "specfuse.loop.lint_plan:main"
 
 [project.urls]
 Homepage = "https://github.com/specfuse/specfuse"
