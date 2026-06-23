@@ -138,6 +138,23 @@ class TestUpgrade(unittest.TestCase):
             self.assertEqual(runner.calls, [], "dry-run must not pip-upgrade")
             self.assertIn("dry-run", out.getvalue())
 
+    def test_upgrade_dry_run_tolerates_dangling_symlinks(self):
+        """A legacy init.sh scaffold leaves dangling .specfuse/skills/* symlinks.
+        The dry-run copies .specfuse/ to a temp dir; copytree must not choke on
+        them (regression: shutil.Error 'No such file or directory')."""
+        with tempfile.TemporaryDirectory() as d:
+            self._init(d)
+            skills = Path(d) / ".specfuse" / "skills"
+            skills.mkdir(parents=True, exist_ok=True)
+            # Point at a target that does not exist → dangling symlink.
+            (skills / "roadmap-add").symlink_to("../../nonexistent/roadmap-add")
+            runner = _ok_runner(0)
+            out = io.StringIO()
+            with redirect_stdout(out):
+                rc = cli.cmd_upgrade(_args(target=d, dry_run=True), runner=runner)
+            self.assertEqual(rc, 0, "dry-run must survive dangling legacy symlinks")
+            self.assertIn("dry-run", out.getvalue())
+
 
 class TestParser(unittest.TestCase):
 
