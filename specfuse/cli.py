@@ -23,6 +23,7 @@ thin user-facing bridge over it.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import shutil
 import subprocess
 import sys
@@ -31,7 +32,7 @@ from pathlib import Path
 
 from specfuse.loop import scaffold
 
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 
 MARKETPLACE = "specfuse/specfuse"
 PLUGIN = "specfuse@specfuse"
@@ -52,6 +53,50 @@ def _pip_install(packages: list[str], *, upgrade: bool, runner=None) -> int:
     cmd += packages
     proc = runner(cmd)
     return getattr(proc, "returncode", 0)
+
+
+def _scaffold_is_current(target: Path) -> tuple[bool, str]:
+    """Return (already_current, installed_seed_version).
+
+    already_current is True when the target's .specfuse/VERSION equals the
+    installed seed version — i.e. there is nothing newer to overlay.
+    """
+    installed = scaffold.scaffold_version()
+    vpath = target / ".specfuse" / "VERSION"
+    if not vpath.exists():
+        return (False, installed)
+    current = vpath.read_text(encoding="utf-8").strip()
+    try:
+        same = scaffold._parse_version(current) == scaffold._parse_version(installed)
+    except ValueError:
+        return (False, installed)
+    return (same, installed)
+
+
+def _pip_upgrade_or_advise(runner=None) -> int:
+    """Pip-upgrade the driver + CLI, unless this is a pipx-managed or pip-less
+    install — pipx owns its venv (and may ship no pip), so `python -m pip` either
+    fails ('No module named pip') or fights pipx. In that case skip and advise
+    the right command instead of erroring. Returns a process-style rc (0 = ok or
+    cleanly skipped)."""
+    pipx_managed = "/pipx/venvs/" in Path(sys.executable).as_posix()
+    pip_missing = importlib.util.find_spec("pip") is None
+    if pipx_managed or pip_missing:
+        why = "pipx-managed install" if pipx_managed else "no pip in this environment"
+        print(
+            f"specfuse: skipping automatic package upgrade ({why}). Update the "
+            f"driver + CLI with:\n"
+            f"  pipx upgrade specfuse                 # if installed via pipx\n"
+            f"  python3 -m pip install -U specfuse    # if installed in a venv",
+            file=sys.stderr,
+        )
+        return 0
+    rc = _pip_install(["specfuse-loop", "specfuse"], upgrade=True, runner=runner)
+    if rc != 0:
+        print(f"specfuse: pip upgrade failed (exit {rc}).", file=sys.stderr)
+    else:
+        print("specfuse: pip packages upgraded (specfuse-loop, specfuse).")
+    return rc
 
 
 def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
@@ -104,8 +149,13 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
         print(f"specfuse: target '{target}' is not a directory.", file=sys.stderr)
         return 2
     ci_check = getattr(args, "ci_check", None)
+    current, installed = _scaffold_is_current(target)
 
     if getattr(args, "dry_run", False):
+        if current:
+            print(f"specfuse: [dry-run] .specfuse/ is already at the latest "
+                  f"scaffold version ({installed}); nothing to overlay.")
+            return 0
         # Preview the overlay against a faithful copy of the target's .specfuse/;
         # the target is never touched and no pip runs.
         with tempfile.TemporaryDirectory() as tmp:
@@ -137,13 +187,16 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
     except scaffold.ScaffoldDowngradeError as exc:
         print(f"specfuse: {exc}", file=sys.stderr)
         return 1
-    print(f"specfuse: overlaid {len(written)} versioned file(s) onto {target}/.specfuse/.")
+    if current:
+        print(f"specfuse: .specfuse/ already at the latest scaffold version "
+              f"({installed}); .claude wiring refreshed.")
+    else:
+        print(f"specfuse: overlaid {len(written)} versioned file(s) onto "
+              f"{target}/.specfuse/.")
 
-    rc = _pip_install(["specfuse-loop", "specfuse"], upgrade=True, runner=runner)
+    rc = _pip_upgrade_or_advise(runner)
     if rc != 0:
-        print(f"specfuse: pip upgrade failed (exit {rc}).", file=sys.stderr)
         return rc
-    print("specfuse: pip packages upgraded (specfuse-loop, specfuse).")
     print(PLUGIN_UPDATE_HINT)
     return 0
 
