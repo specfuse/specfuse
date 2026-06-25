@@ -32,7 +32,7 @@ from pathlib import Path
 
 from specfuse.loop import scaffold
 
-__version__ = "0.2.7"
+__version__ = "0.2.8"
 
 MARKETPLACE = "specfuse/specfuse"
 PLUGIN = "specfuse@specfuse"
