@@ -13,6 +13,10 @@
     {
       "name": "specfuse-authoring",
       "source": "./plugins/specfuse-authoring"
+    },
+    {
+      "name": "specfuse-orchestrator",
+      "source": "./plugins/specfuse-orchestrator"
     }
   ]
 }

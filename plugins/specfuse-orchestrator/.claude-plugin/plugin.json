@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "specfuse-orchestrator",
+  "displayName": "Specfuse Orchestrator",
+  "version": "0.1.0",
+  "description": "Multi-repo initiative coordination for Specfuse loops: onboard component repos, dispatch loop features across them, and track initiative-level progress against the Specfuse methodology.",
+  "author": {
+    "name": "Specfuse contributors"
+  },
+  "homepage": "https://github.com/specfuse/orchestrator",
+  "repository": "https://github.com/specfuse/specfuse",
+  "license": "Apache-2.0",
+  "keywords": ["specfuse", "orchestrator", "multi-repo", "initiative", "gate-cycle", "spec-driven"]
+}
