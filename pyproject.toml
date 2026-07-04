@@ -30,6 +30,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["coverage>=7.0", "ruff>=0.6"]
+# Opt-in extra: the multi-repo initiative-coordination component. NOT a default
+# dependency (unlike specfuse-loop) — it runs at one coordination point, not in
+# every consumer. `pipx install specfuse[orchestrator]`.
+orchestrator = ["specfuse-orchestrator>=0.3.0"]
 
 [project.scripts]
 specfuse = "specfuse.cli:main"
