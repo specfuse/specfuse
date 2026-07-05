@@ -28,18 +28,21 @@ on:
 jobs:
   drift-guard:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      - name: Install test deps
+        run: pip install pytest
+
       - name: Test the publish mechanism itself
         run: python -m pytest tests/test_publish.py -q
 
       - name: Verify each managed plugin matches its source@version
-        env:
-          PYTHONPATH: .
         run: |
           set -euo pipefail
           managed=$(python - <<'PY'
