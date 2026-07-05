@@ -44,6 +44,12 @@ comparison but cannot accept your pick.
   NOT auto-demote the existing active — the user owns that
   transition (mark it `done`, `blocked_human`, `abandoned`, or
   leave it parallel).
+- **`deferred` is not a pick candidate — and not an active blocker.**
+  A `deferred` feature is parked pending an external decision/dependency:
+  do NOT offer it in the pick list (it isn't `planned`), and do NOT treat
+  it as the current active that must be finished first (it isn't `active`,
+  nothing is loop-dispatchable). If the user wants to resume one, that's a
+  human flip `deferred` → `active`, not a pick.
 - **Infer first, ask last.** A question is legitimate only when no
   file the skill could read would answer it. Asking "what's the
   goal?" when `roadmap_goal` is set in PLAN frontmatter is a bug.
@@ -61,10 +67,20 @@ roadmap, this skill is solving nothing — just start it.
 - **`.specfuse/roadmap.md`** — the master index. Each row's status
   (`planned` / `active` / `done` / `abandoned`) and one-line goal are
   the primary input.
-- **`.specfuse/LEARNINGS.md`** — durable rules from past gates that
-  would change the shape of feature to pull next (e.g. "after a
-  refactor-heavy gate, pull a feature with clear acceptance criteria
-  to recover trust").
+- **Durable lessons, sliced, not the whole file.** Run
+  `python3 .specfuse/scripts/learnings_query.py "<query>" --top 15`
+  rather than reading `.specfuse/LEARNINGS.md` whole. Because this
+  skill ranks 2-3 candidate features, not one, there is no single
+  feature query — build `<query>` as the **concatenated one-line
+  goals and slugs of every `planned` row under comparison** (the
+  roadmap rows from step 1 above), and keep `--top` at 15 or higher
+  so a lesson relevant to a lower-ranked candidate isn't dropped. If
+  the CLI instead prints the sentinel line `LEARNINGS-LOAD-WHOLE`,
+  fall back to reading `.specfuse/LEARNINGS.md` in full. Also prefer
+  the whole-file read outright when the comparison set is large or
+  heterogeneous (many candidates spanning unrelated areas) — a
+  diffuse comparison is exactly where slicing risks dropping a needed
+  lesson, so don't force a narrow query onto it.
 - For each `planned` row that has a feature folder under
   `.specfuse/features/`, read its `PLAN.md` frontmatter (the
   `roadmap_goal`, the framing prose if present, and the gates graph
