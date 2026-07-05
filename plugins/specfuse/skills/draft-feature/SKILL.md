@@ -39,11 +39,17 @@ ask it to run this skill against your feature idea.
   per-WU craft in `.specfuse/skills/authoring-work-units/SKILL.md` are
   binding by reference. The skill points at them; it does not
   duplicate them.
-- **Detail only gate 1.** Later gates are skeletal (declared in the
-  PLAN's gates graph but with empty `work_units` lists). Each gate's
-  substantive work units are filled in by the previous gate's
-  `plan-next` closing unit when the prior gate completes — that's the
-  methodology's whole forward-design move.
+- **Detail only gate 1.** Later gates are skeletal — their *substantive*
+  work units are filled in by the previous gate's `plan-next` closing
+  unit when the prior gate completes (the methodology's forward-design
+  move). **But the FINAL gate must pre-declare its terminal `close` WU**
+  (one graph entry + a `status: draft` placeholder file), because the
+  linter treats the *last non-empty gate* as terminal
+  (`lint_plan.py`): with every later gate's `work_units` empty, gate 1
+  is misread as terminal and its `close-intermediate → plan-next`
+  sequence is rejected. So: intermediate later gates may be empty; the
+  last gate carries a lone `close` placeholder (plan-next inserts that
+  gate's substantive WUs *before* it). See step 6.
 
 ## When to invoke
 
@@ -63,8 +69,16 @@ Before any proposal, read what shapes good plans in *this* project:
   `FEAT-YYYY-NNNN` for the current year. The roadmap also reveals
   ordering constraints: a planned feature that this initiative
   conflicts with, supersedes, or unblocks.
-- **`.specfuse/LEARNINGS.md`** — durable rules from past gates that
-  would change how this feature is planned or sized.
+- **LEARNINGS slice, not the whole file.** `PLAN.md` doesn't exist yet at
+  this step, so build a short query from what's already in hand: the
+  one-line feature idea the user gave you, the provisional slug, and any
+  surface names the idea already mentions. Run
+  `python3 .specfuse/scripts/learnings_query.py "<query>" --top 8` and read
+  only the returned bullets — durable rules from past gates that would
+  change how this feature is planned or sized. If the CLI prints the
+  sentinel line `LEARNINGS-LOAD-WHOLE` (small/early-stage repos, too few
+  entries to rank), fall back to reading `.specfuse/LEARNINGS.md` whole.
+  Don't read the whole file otherwise.
 - **`.specfuse/features/*/PLAN.md`** — recent feature exemplars. Read
   one or two to see what good gate-cutting looks like in this project
   (gate count, WU count per gate, typical depends_on shapes).
@@ -257,9 +271,20 @@ When the user has accepted the structure:
 - Write `PLAN.md` from the template (`.specfuse/templates/PLAN.template.md`)
   with the accepted frontmatter, framing prose, and gates graph.
 - Write `GATE-NN.md` for each gate (full content for gate 1, stub for
-  gates 2..N — empty `work_units` in the graph means the gate is
-  awaiting `plan-next`).
-- Write the WU files for gate 1 in the accepted forms.
+  gates 2..N). Give each stub gate `status: open` (NOT `draft` — `draft`
+  is a WU status, not a gate status; gate statuses are `open` /
+  `awaiting_review` / `passed`).
+- **Multi-gate features: pre-declare the FINAL gate's terminal `close`.**
+  For a 2+-gate feature, the last gate's `work_units` must list one
+  entry — its terminal `close` WU (id `FEAT-YYYY-NNNN/G<N>-CLOSE`, file
+  `WU-9x-gate-N-close.md`) — and you write that WU file as a
+  `status: draft` placeholder (`depends_on: []` for now; `plan-next`
+  updates it to depend on the substantive WUs it inserts before it).
+  This is what makes the last gate the *non-empty* terminal gate so the
+  linter reads gate 1 as non-terminal. Intermediate gates (between the
+  first and last) may keep empty `work_units`.
+- Write the WU files for gate 1 in the accepted forms (and the final
+  gate's `close` placeholder per the bullet above).
 - Append a one-line row to `.specfuse/roadmap.md` (status `planned`
   until the user flips it to `active` themselves), **and** an inline
   `## FEAT-YYYY-NNNN — <title>` detail section (place it among the other

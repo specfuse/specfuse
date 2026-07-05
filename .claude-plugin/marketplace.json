@@ -9,7 +9,8 @@
     {
       "name": "specfuse",
       "source": "./plugins/specfuse",
-      "source_repo": "specfuse/loop"
+      "source_repo": "specfuse/loop",
+      "managed": true
     },
     {
       "name": "specfuse-authoring",
