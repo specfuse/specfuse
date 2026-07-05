@@ -84,3 +84,66 @@ def test_publish_missing_source_raises(tmp_path):
     mkt = _make_marketplace(tmp_path / "mkt", "q")
     with pytest.raises(FileNotFoundError):
         pub.publish("q", tmp_path / "src", "1.2.3", mkt)
+
+
+# ── drift-guard (verify) ─────────────────────────────────────────────────────
+
+def test_verify_true_after_publish(tmp_path):
+    src = _make_source(tmp_path / "src", "p")
+    mkt = _make_marketplace(tmp_path / "mkt", "p")
+    pub.publish("p", src, "1.2.3", mkt)
+    assert pub.verify("p", src, "1.2.3", mkt) is True
+
+
+def test_verify_detects_hand_edit(tmp_path):
+    src = _make_source(tmp_path / "src", "p")
+    mkt = _make_marketplace(tmp_path / "mkt", "p")
+    pub.publish("p", src, "1.2.3", mkt)
+    # simulate a hand-edit to the committed marketplace copy
+    (mkt / "plugins" / "p" / "skills" / "do-thing" / "SKILL.md").write_text("# sneaky edit\n")
+    assert pub.verify("p", src, "1.2.3", mkt) is False
+
+
+def test_verify_detects_added_file(tmp_path):
+    src = _make_source(tmp_path / "src", "p")
+    mkt = _make_marketplace(tmp_path / "mkt", "p")
+    pub.publish("p", src, "1.2.3", mkt)
+    (mkt / "plugins" / "p" / "extra.md").write_text("not from source\n")
+    assert pub.verify("p", src, "1.2.3", mkt) is False
+
+
+def test_verify_wrong_version(tmp_path):
+    src = _make_source(tmp_path / "src", "p")
+    mkt = _make_marketplace(tmp_path / "mkt", "p")
+    pub.publish("p", src, "1.2.3", mkt)
+    # committed is stamped 1.2.3; verifying against 9.9.9 must fail
+    assert pub.verify("p", src, "9.9.9", mkt) is False
+
+
+def test_committed_version(tmp_path):
+    src = _make_source(tmp_path / "src", "p")
+    mkt = _make_marketplace(tmp_path / "mkt", "p")
+    pub.publish("p", src, "4.5.6", mkt)
+    assert pub.committed_version("p", mkt) == "4.5.6"
+
+
+def test_managed_plugins_filter(tmp_path):
+    manifest = {"plugins": [
+        {"name": "a", "managed": True},
+        {"name": "b"},
+        {"name": "c", "managed": False},
+    ]}
+    assert [e["name"] for e in pub.managed_plugins(manifest)] == ["a"]
+
+
+def test_check_cli_exit_codes(tmp_path, capsys):
+    src = _make_source(tmp_path / "src", "p")
+    mkt = _make_marketplace(tmp_path / "mkt", "p")
+    pub.publish("p", src, "1.2.3", mkt)
+    ok = pub.main(["p", "--source", str(src), "--version", "1.2.3",
+                   "--marketplace-root", str(mkt), "--check"])
+    assert ok == 0
+    (mkt / "plugins" / "p" / "extra.md").write_text("drift\n")
+    drift = pub.main(["p", "--source", str(src), "--version", "1.2.3",
+                      "--marketplace-root", str(mkt), "--check"])
+    assert drift == 1

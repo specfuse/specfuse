@@ -19,7 +19,8 @@
     {
       "name": "specfuse-orchestrator",
       "source": "./plugins/specfuse-orchestrator",
-      "source_repo": "specfuse/orchestrator"
+      "source_repo": "specfuse/orchestrator",
+      "managed": true
     }
   ]
 }

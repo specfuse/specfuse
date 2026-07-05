@@ -1,0 +1,68 @@
+# Marketplace plugin drift-guard.
+#
+# The committed plugins/<name>/ copies are publish output only (see
+# docs/plan-unify-plugin-sourcing.md). This job proves it: for every `managed`
+# plugin it clones the source repo at the tag matching the committed
+# plugin.json.version and re-runs the publish in --check mode. Any divergence —
+# a hand-edit, a bad merge, an agent's "quick fix" — fails CI, so nothing enters
+# plugins/ except a faithful publish.
+#
+# Make this a REQUIRED status check in branch protection for it to actually block.
+name: plugin-drift-guard
+
+on:
+  pull_request:
+    paths:
+      - "plugins/**"
+      - ".claude-plugin/marketplace.json"
+      - "specfuse/publish.py"
+      - "tests/test_publish.py"
+      - ".github/workflows/plugin-drift-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - "plugins/**"
+      - ".claude-plugin/marketplace.json"
+      - "specfuse/publish.py"
+
+jobs:
+  drift-guard:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test deps
+        run: pip install pytest
+
+      - name: Test the publish mechanism itself
+        run: python -m pytest tests/test_publish.py -q
+
+      - name: Verify each managed plugin matches its source@version
+        run: |
+          set -euo pipefail
+          managed=$(python - <<'PY'
+          import json
+          m = json.load(open(".claude-plugin/marketplace.json"))
+          for p in m["plugins"]:
+              if p.get("managed") is True:
+                  print(p["name"], p["source_repo"])
+          PY
+          )
+          if [ -z "$managed" ]; then
+            echo "no managed plugins to check"; exit 0
+          fi
+          echo "$managed" | while read -r name repo; do
+            [ -z "$name" ] && continue
+            version=$(python -c "from specfuse.publish import committed_version; print(committed_version('$name'))")
+            echo "::group::drift-check $name @ v$version ($repo)"
+            src=$(mktemp -d)
+            git clone --depth 1 --branch "v$version" "https://github.com/$repo.git" "$src/repo"
+            python -m specfuse.publish "$name" \
+              --source "$src/repo" --version "$version" --check
+            echo "::endgroup::"
+          done
