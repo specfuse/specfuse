@@ -51,31 +51,45 @@ their next run. `specfuse` contributes to the shared `specfuse.*` import namespa
 
 ## Plugins
 
-| Plugin | What it ships | Source |
-|--------|----------------|--------|
-| `specfuse` | Gate-cycle skills (pick / draft / arm / diagnose / wrap, authoring, verification) | [`plugins/specfuse/`](plugins/specfuse/) |
-
-Future products (orchestrator, shared core) will add entries here and reuse the
-same marketplace.
+| Plugin | What it ships | Source repo |
+|--------|----------------|-------------|
+| `specfuse` | Gate-cycle skills (pick / draft / arm / diagnose / wrap, authoring, verification) | [`specfuse/loop`](https://github.com/specfuse/loop) `plugins/specfuse/` |
+| `specfuse-authoring` | Spec-craft: design OpenAPI/AsyncAPI/Arazzo, validate, bundle + the `specs` agent (idea → validated initiative) | [`specfuse/authoring`](https://github.com/specfuse/authoring) `plugins/specfuse-authoring/` |
+| `specfuse-orchestrator` | Multi-repo initiative coordination (onboard, pm) | [`specfuse/orchestrator`](https://github.com/specfuse/orchestrator) `plugins/specfuse-orchestrator/` |
 
 ## Layout
 
 ```
-.claude-plugin/marketplace.json   # this marketplace's catalog
-plugins/specfuse/
-  .claude-plugin/plugin.json       # the specfuse plugin manifest
-  skills/<skill>/SKILL.md          # the gate-cycle skills
+.claude-plugin/marketplace.json   # catalog: per plugin { name, source, source_repo, managed }
+plugins/<name>/                    # GENERATED copies — do not hand-edit (see below)
+  .claude-plugin/plugin.json
+  skills/<skill>/SKILL.md
+  agents/<agent>.md
 ```
 
-## Relationship to specfuse/loop
+## How the plugins are sourced (contributors)
 
-The skills here are the same craft authored in
-[`specfuse/loop`](https://github.com/specfuse/loop)'s `.specfuse/skills/`. The loop
-repo is canonical; a sync step keeps this plugin's copy current. Skills reach a
-target repo through this plugin (under the `/specfuse:` namespace) — `specfuse
-init` wires the plugin into the repo's `.claude/settings.json`; it does not copy
-skill files into the repo. (`init.sh` is a deprecated v1.0 shim that delegates to
-`specfuse init`/`upgrade`.)
+**Edit a plugin in its origin repo, never here.** Each plugin's canonical source
+lives in its own repo at `plugins/<name>/` (for the loop, `.specfuse/skills/` is
+vendored *from* `plugins/specfuse/skills/` for its dogfood — the plugin dir is
+still the source). The copies under `plugins/` in **this** repo are **generated
+output**, produced by [`specfuse/publish.py`](specfuse/publish.py).
+
+- **Publish on release.** When a source repo publishes its package to PyPI, its
+  release workflow dispatches to this repo; the publish step regenerates that
+  plugin from the source at tag `v<version>`, stamps `plugin.json.version` to the
+  released version (`plugin@X == package@X == tag vX`), and opens a PR **only if
+  the plugin changed**.
+- **Drift-guard.** The `plugin-drift-guard` CI (required check) re-derives every
+  `managed` plugin from its source at the pinned tag and fails on any diff — so a
+  hand-edit, a bad merge, or an agent's "quick fix" cannot land in `plugins/`. The
+  only way in is a faithful publish.
+- **Manual publish** (testing / backfill): the `plugin-publish` workflow's
+  `workflow_dispatch` (`plugin`, `version`) runs the same path by hand.
+
+See [`docs/plan-unify-plugin-sourcing.md`](docs/plan-unify-plugin-sourcing.md) for
+the full design. Skills reach a target repo through the installed plugin (under
+the `/specfuse:` etc. namespaces), not by copying files into the repo.
 
 ## License
 
