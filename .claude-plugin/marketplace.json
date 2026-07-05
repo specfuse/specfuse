@@ -8,15 +8,18 @@
   "plugins": [
     {
       "name": "specfuse",
-      "source": "./plugins/specfuse"
+      "source": "./plugins/specfuse",
+      "source_repo": "specfuse/loop"
     },
     {
       "name": "specfuse-authoring",
-      "source": "./plugins/specfuse-authoring"
+      "source": "./plugins/specfuse-authoring",
+      "source_repo": "specfuse/authoring"
     },
     {
       "name": "specfuse-orchestrator",
-      "source": "./plugins/specfuse-orchestrator"
+      "source": "./plugins/specfuse-orchestrator",
+      "source_repo": "specfuse/orchestrator"
     }
   ]
 }
