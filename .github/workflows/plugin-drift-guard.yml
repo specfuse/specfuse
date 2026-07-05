@@ -20,7 +20,9 @@ on:
     branches: [main]
 
 jobs:
-  drift-guard:
+  # Job name MUST equal the context required by the "Protect main" ruleset
+  # (plugin-drift-guard) — the status check is reported under the job name.
+  plugin-drift-guard:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: .
