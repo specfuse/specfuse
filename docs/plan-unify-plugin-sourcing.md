@@ -116,16 +116,37 @@ cleanest first onboarding.
 
 ---
 
-## One-look summary
+## One-look summary — ALL GATES COMPLETE
 
-| Gate | Repo | Outcome |
-| --- | --- | --- |
-| 1 | marketplace | publish script + `marketplace.json.source_repo`; orchestrator mirror backfilled + versioned |
-| 2 | marketplace | regenerate-and-diff CI guard + `plugins/` lock |
-| 3 | orchestrator | PyPI release fires the marketplace publish |
-| 4 | loop | canonical `plugins/specfuse/`; `.specfuse/skills/` vendored from it; onboarded |
-| 5 | authoring | plugin content migrated into the repo; onboarded (heaviest) |
-| 6 | all | cutover; everything generated + guarded; docs |
+| Gate | Repo | Outcome | Status |
+| --- | --- | --- | --- |
+| 1 | marketplace | publish script + `marketplace.json.source_repo`; orchestrator mirror backfilled + versioned | ✅ #27 |
+| 2 | marketplace | regenerate-and-diff CI guard (+ ruleset fixes: run-on-all-PRs, job-name match) | ✅ #28, #30 |
+| 3 | orchestrator + marketplace | PyPI release fires the marketplace publish (dispatch + receiver) | ✅ #66, #29 |
+| 4 | loop | canonical `plugins/specfuse/`; `.specfuse/skills/` vendored from it; onboarded | ✅ loop#131 + loop `v0.3.8`; #31 |
+| 5 | authoring | plugin content migrated into the repo; onboarded | ✅ authoring#2 + authoring `v0.3.2`; #32 |
+| 6 | all | cutover; everything generated + guarded; docs | ✅ this PR |
+
+**End state:** all three plugins managed + drift-guarded against released tags —
+`specfuse` → loop@`v0.3.8`, `specfuse-authoring` → authoring@`v0.3.2`,
+`specfuse-orchestrator` → orchestrator@`v0.3.3`. Every `plugins/**` file is
+publish output; a PyPI release auto-publishes; the drift-guard blocks anything
+else.
+
+## Remaining operator (human) setup — not code
+
+These make the *auto*-publish fully hands-off; the mechanism works without them
+(manual `workflow_dispatch` + hand-merge of the publish PR):
+
+1. **`MARKETPLACE_DISPATCH_TOKEN`** secret in each source repo — a fine-grained
+   PAT scoped to `specfuse/specfuse` with dispatch permission. Absent → the
+   release's dispatch step warns and no-ops (never fails the release). Wired in
+   `specfuse/orchestrator`; add the same step + secret to `specfuse/loop` and
+   `specfuse/authoring` release workflows to complete their auto-triggers.
+2. **Real CODEOWNERS handle** — replace `@specfuse-maintainers` in
+   `.github/CODEOWNERS` with a handle/team that can approve, or the ruleset's
+   code-owner-review requirement blocks the auto-publish PRs (which touch
+   `plugins/`).
 
 ## Notes / risks
 
