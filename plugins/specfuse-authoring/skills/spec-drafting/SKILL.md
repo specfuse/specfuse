@@ -23,15 +23,15 @@ When this file and the specs agent role config disagree, **the role config wins 
 
 ## Trigger
 
-The human has completed feature intake (a registry entry exists at `/features/FEAT-YYYY-NNNN.md` with `state: drafting`) and is ready to describe the feature's behavior in detail. The trigger is conversational: the human says something like "let's draft the spec for FEAT-2026-0008" or continues from a feature-intake session into spec authoring.
+The human has completed initiative intake (a registry entry exists at `/features/INIT-YYYY-NNNN.md` with `state: drafting`) and is ready to describe the initiative's behavior in detail. The trigger is conversational: the human says something like "let's draft the spec for INIT-2026-0008" or continues from an initiative-intake session into spec authoring.
 
-**Precondition.** A valid feature registry entry must exist for the feature being drafted. The skill reads the registry file and confirms `state: drafting` before proceeding. If the feature is in any other state, the skill does not proceed — it informs the human and suggests the appropriate entry point (feature-intake for a missing feature, spec-validation for an already-validated one).
+**Precondition.** A valid initiative registry entry must exist for the initiative being drafted. The skill reads the registry file and confirms `state: drafting` before proceeding. If the feature is in any other state, the skill does not proceed — it informs the human and suggests the appropriate entry point (initiative-intake for a missing initiative, spec-validation for an already-validated one).
 
 ## Inputs
 
 The skill reads, in order:
 
-1. The feature registry entry at `/features/FEAT-YYYY-NNNN.md` — its frontmatter (`correlation_id`, `state`, `involved_repos`, `autonomy_default`) and its body (placeholder sections from feature-intake or partially-drafted content from a prior session).
+1. The initiative registry entry at `/features/INIT-YYYY-NNNN.md` — its frontmatter (`correlation_id`, `state`, `involved_repos`, `autonomy_default`) and its body (placeholder sections from initiative-intake or partially-drafted content from a prior session).
 2. This skill file and the specs agent role config — reloaded per `/shared/rules/role-switch-hygiene.md`.
 3. Any existing spec files under `/product/` in the product specs repo that the human references or that `## Related specs` already points to (for continuation sessions where drafting resumes on a partially-authored spec).
 4. The `test-plan.schema.json` contract — not to author test plans (that is qa-authoring's concern), but to understand the shape acceptance criteria must map onto: `test_id`, `covers`, `commands`, `expected`.
@@ -46,11 +46,11 @@ The skill organizes the spec-drafting session into three phases. The phases are 
 
 ### Phase 1 — Feature scoping
 
-**Goal.** Help the human articulate what the feature does, which repos it touches, and what its boundaries are. By the end of this phase, the feature registry's body sections — `## Description`, `## Scope`, `## Out of scope`, and `## Related specs` — are populated with concrete, unambiguous content.
+**Goal.** Help the human articulate what the feature does, which repos it touches, and what its boundaries are. By the end of this phase, the initiative registry's body sections — `## Description`, `## Scope`, `## Out of scope`, and `## Related specs` — are populated with concrete, unambiguous content.
 
 **How the agent guides the conversation:**
 
-1. Read the feature registry entry. Note the `involved_repos` and `autonomy_default` from frontmatter; note whether the body sections carry placeholder text ("To be drafted during spec authoring") or have prior content.
+1. Read the initiative registry entry. Note the `involved_repos` and `autonomy_default` from frontmatter; note whether the body sections carry placeholder text ("To be drafted during spec authoring") or have prior content.
 2. Ask the human to describe the feature in a few sentences. Do not require a structured format — let the human express the idea naturally.
 3. Based on the human's description, ask focused scoping questions. Good scoping questions isolate boundaries:
    - "Does this feature add new endpoints, or does it modify existing ones?"
@@ -60,20 +60,20 @@ The skill organizes the spec-drafting session into three phases. The phases are 
 4. Draft the four body sections based on the human's answers. Present them for review.
 5. Iterate until the human approves the scoped content.
 
-**Output of Phase 1.** The feature registry's body sections are populated:
+**Output of Phase 1.** The initiative registry's body sections are populated:
 
 - `## Description` — one or two paragraphs in product language stating what the feature is and why it exists.
 - `## Scope` — a bulleted list of capabilities the feature delivers. Each bullet is a concrete, prescriptive statement (see [§ Scope and cardinality conventions](#scope-and-cardinality-conventions) below). Each bullet maps to at least one acceptance criterion that will be drafted in Phase 2.
 - `## Out of scope` — a bulleted list of adjacent concerns this feature explicitly does not cover.
 - `## Related specs` — initially empty or carrying forward references; populated fully in Phase 2 as spec files are created.
 
-The body sections are written to the feature registry file. **The frontmatter is not modified** — `state`, `correlation_id`, `task_graph`, and other frontmatter fields are owned by the intake and validation skills.
+The body sections are written to the initiative registry file. **The frontmatter is not modified** — `state`, `correlation_id`, `task_graph`, and other frontmatter fields are owned by the intake and validation skills.
 
 ---
 
 ### Phase 2 — Spec drafting
 
-**Goal.** Produce the specification documents under `/product/specs/` in the product specs repo and populate the feature registry's `## Related specs` section with links to every produced spec file.
+**Goal.** Produce the specification documents under `/product/specs/` in the product specs repo and populate the initiative registry's `## Related specs` section with links to every produced spec file.
 
 **Choosing the right spec type:**
 
@@ -96,7 +96,7 @@ When the feature spans multiple spec types (e.g., a REST API that also emits eve
 **File path conventions:**
 
 - Spec documents: `/product/specs/<feature-slug>.yaml` (or `.json`). The `<feature-slug>` is a kebab-case, human-readable name derived from the feature title — not the correlation ID. Example: a feature titled "Widget Catalog API" produces `/product/specs/widget-catalog-api.yaml`.
-- Feature descriptions (narratives with acceptance criteria): `/product/features/<correlation-id>.md`. Example: `/product/features/FEAT-2026-0008.md`.
+- Feature descriptions (narratives with acceptance criteria): `/product/features/<correlation-id>.md`. Example: `/product/features/INIT-2026-0008.md`.
 - Avoid conflicts with existing files: before creating a file, check whether a file at the target path already exists. If it does, confirm with the human whether to overwrite (continuation of the same feature's drafting) or use an alternative path (different feature touching the same spec surface).
 
 **Writing acceptance criteria that the QA agent can consume:**
@@ -116,9 +116,9 @@ This maps to qa-authoring's test entry as:
 - `commands`: the executable step to call the endpoint
 - `expected`: "HTTP status is 200 and body parses as a JSON array where each element has string fields id, name, and ISO-8601 datetime field created_at."
 
-**Output of Phase 2.** Spec files exist under `/product/` and the feature registry's `## Related specs` section links to every produced file. The acceptance criteria are enumerated in the spec files (for machine-readable specs, as response definitions; for narratives, as the `### Acceptance criteria` section).
+**Output of Phase 2.** Spec files exist under `/product/` and the initiative registry's `## Related specs` section links to every produced file. The acceptance criteria are enumerated in the spec files (for machine-readable specs, as response definitions; for narratives, as the `### Acceptance criteria` section).
 
-**`## Related specs` path format.** Each entry in the `## Related specs` section must use a **repository-relative path** as the primary reference (e.g., `product/features/FEAT-2026-0008.md`, `product/specs/widget-update-api.yaml`). These paths are relative to the product specs repo root and are portable across local clones and GitHub views. Full GitHub URLs may appear as supplementary links for human readers, but the first reference in each list item must be a relative path — downstream agents (PM, QA, component) operate on local clones and cannot resolve GitHub URLs to filesystem paths without a `find` workaround. The worked example below demonstrates the format.
+**`## Related specs` path format.** Each entry in the `## Related specs` section must use a **repository-relative path** as the primary reference (e.g., `product/features/INIT-2026-0008.md`, `product/specs/widget-update-api.yaml`). These paths are relative to the product specs repo root and are portable across local clones and GitHub views. Full GitHub URLs may appear as supplementary links for human readers, but the first reference in each list item must be a relative path — downstream agents (PM, QA, component) operate on local clones and cannot resolve GitHub URLs to filesystem paths without a `find` workaround. The worked example below demonstrates the format.
 
 **After writing each file,** re-read the created file and confirm its content matches the intended draft. This is the spec-drafting skill's local application of the `verify-before-report.md` re-read discipline.
 
@@ -132,13 +132,13 @@ This maps to qa-authoring's test entry as:
 
 1. **All acceptance criteria are testable.** Each criterion maps to a test entry with `covers`, `commands`, and `expected` — verified by the agent walking each criterion against the test-plan schema's expectations.
 2. **All spec files are syntactically valid.** YAML files parse without errors; JSON files are well-formed. OpenAPI, AsyncAPI, and Arazzo documents conform to their respective specification versions. The agent performs a syntactic check (parsing) but does not invoke Specfuse — that invocation belongs to the spec-validation skill.
-3. **Cross-references are consistent.** Every spec file listed in the feature registry's `## Related specs` exists at the stated path. Every acceptance criterion references a spec element that exists in one of the related spec files.
-4. **The feature registry's body sections are complete.** `## Description`, `## Scope`, `## Out of scope`, and `## Related specs` all contain substantive content — no placeholder text remains.
+3. **Cross-references are consistent.** Every spec file listed in the initiative registry's `## Related specs` exists at the stated path. Every acceptance criterion references a spec element that exists in one of the related spec files.
+4. **The initiative registry's body sections are complete.** `## Description`, `## Scope`, `## Out of scope`, and `## Related specs` all contain substantive content — no placeholder text remains.
 
 **The review checklist the agent presents to the human:**
 
 ```
-Pre-validation review for FEAT-YYYY-NNNN:
+Pre-validation review for INIT-YYYY-NNNN:
 
 [ ] Description: substantive, product-language description present
 [ ] Scope: all bullets use prescriptive language (see §Scope and cardinality conventions)
@@ -167,16 +167,16 @@ The spec-drafting skill manages the `/product/` subtree in the product specs rep
 The spec-drafting skill produces two categories of artifact:
 
 1. **Spec files** under `/product/` in the product specs repo — the primary output.
-2. **Feature registry body section updates** in the orchestration repo — populating `## Description`, `## Scope`, `## Out of scope`, and `## Related specs`.
+2. **Initiative registry body section updates** in the orchestration repo — populating `## Description`, `## Scope`, `## Out of scope`, and `## Related specs`.
 
-The skill does **not** modify the feature registry's frontmatter. The frontmatter fields — `state`, `correlation_id`, `involved_repos`, `autonomy_default`, `task_graph` — are owned by other skills:
+The skill does **not** modify the initiative registry's frontmatter. The frontmatter fields — `state`, `correlation_id`, `involved_repos`, `autonomy_default`, `task_graph` — are owned by other skills:
 
-- `state` transitions are owned by the feature-intake skill (`→ drafting`) and the spec-validation skill (`drafting → validating`, `validating → planning`).
-- `correlation_id` is minted by feature-intake and never changed.
+- `state` transitions are owned by the initiative-intake skill (`→ drafting`) and the spec-validation skill (`drafting → validating`, `validating → planning`).
+- `correlation_id` is minted by initiative-intake and never changed.
 - `task_graph` is populated by the PM agent during `planning`.
 - `involved_repos` and `autonomy_default` are set at intake.
 
-If the spec-drafting session surfaces a need to change `involved_repos` (e.g., the feature turns out to touch an additional repo), the agent informs the human and suggests re-running the relevant portion of feature intake — it does not modify the frontmatter directly.
+If the spec-drafting session surfaces a need to change `involved_repos` (e.g., the feature turns out to touch an additional repo), the agent informs the human and suggests re-running the relevant portion of initiative intake — it does not modify the frontmatter directly.
 
 ## Delivery convention
 
@@ -186,12 +186,12 @@ Spec files produced by the spec-drafting skill must be committed to the product 
 
 **How to commit.** The delivery approach depends on the product specs repo's branch-protection posture:
 
-- **If the repo has branch protection on `main`:** create a feature branch (suggested format: `specs/FEAT-YYYY-NNNN`), commit the spec files, push, and open a PR against `main`. The human merges the PR before proceeding to spec-validation. The agent stops at PR-open — it does not merge or close.
+- **If the repo has branch protection on `main`:** create a feature branch (suggested format: `specs/INIT-YYYY-NNNN`), commit the spec files, push, and open a PR against `main`. The human merges the PR before proceeding to spec-validation. The agent stops at PR-open — it does not merge or close.
 - **If the repo does not have branch protection:** commit directly to `main` and push. This is the simpler path for repos where the human is the sole reviewer and the spec-drafting session is the review.
 
-In either case, the commit message should follow the format: `feat(specs): draft FEAT-YYYY-NNNN <feature-title>`.
+In either case, the commit message should follow the format: `feat(specs): draft INIT-YYYY-NNNN <feature-title>`.
 
-**What to commit.** Only the spec files under `/product/` that this session created or modified. Do not commit files outside `/product/`, files in `/business/` (`never-touch.md` §4), or files in `/product/test-plans/` (QA agent's surface). The feature registry body-section updates (in the orchestration repo) are committed separately by the orchestration session or human operator — the spec-drafting agent does not commit to the orchestration repo (`verify-before-report.md` §"Event-emission operational discipline").
+**What to commit.** Only the spec files under `/product/` that this session created or modified. Do not commit files outside `/product/`, files in `/business/` (`never-touch.md` §4), or files in `/product/test-plans/` (QA agent's surface). The initiative registry body-section updates (in the orchestration repo) are committed separately by the orchestration session or human operator — the spec-drafting agent does not commit to the orchestration repo (`verify-before-report.md` §"Event-emission operational discipline").
 
 **Relationship to qa-authoring delivery convention.** This convention mirrors the qa-authoring skill's delivery convention (added in WU 3.9): both produce files in the product specs repo, both use branch + PR when branch protection is active, and both stop at PR-open. The commit boundary is the same: "content reviewed and verified → commit → downstream skill can proceed."
 
@@ -201,7 +201,7 @@ This section addresses a Phase 3 finding that ambiguous scope language caused do
 
 ### The finding (F3.32)
 
-During Phase 3 walkthroughs, the feature registry for `FEAT-2026-0007` used the phrase "three tests expected under the default cardinality convention" in its `## Scope` section. The word "expected" is ambiguous between two readings:
+During Phase 3 walkthroughs, the initiative registry for `INIT-2026-0007` used the phrase "three tests expected under the default cardinality convention" in its `## Scope` section. The word "expected" is ambiguous between two readings:
 
 - **Confirmatory** — "we expect this to happen" (a prediction about the outcome of a process the author does not control).
 - **Prescriptive** — "author exactly three tests" (a directive to the QA agent about what to produce).
@@ -258,7 +258,7 @@ A realistic spec-drafting session for a small REST API feature, demonstrating th
 
 ---
 
-**Context.** The human has just completed feature intake for `FEAT-2026-0042`. The registry file exists with placeholder body sections, `state: drafting`, and `involved_repos: ["acme/inventory-api"]`.
+**Context.** The human has just completed initiative intake for `INIT-2026-0042`. The registry file exists with placeholder body sections, `state: drafting`, and `involved_repos: ["acme/inventory-api"]`.
 
 ---
 
@@ -322,10 +322,10 @@ enforces a maximum page size to protect downstream query performance.
 
 The agent produces two files:
 
-**File 1: `/product/features/FEAT-2026-0042.md`**
+**File 1: `/product/features/INIT-2026-0042.md`**
 
 ```markdown
-# FEAT-2026-0042 — Inventory API bookmarks
+# INIT-2026-0042 — Inventory API bookmarks
 
 ## Overview
 
@@ -471,12 +471,12 @@ components:
               type: string
 ```
 
-**The agent updates `## Related specs` in the feature registry:**
+**The agent updates `## Related specs` in the initiative registry:**
 
 ```markdown
 ## Related specs
 
-- `product/features/FEAT-2026-0042.md` — feature narrative with acceptance
+- `product/features/INIT-2026-0042.md` — feature narrative with acceptance
   criteria (AC-1 through AC-5).
 - `product/specs/inventory-api-bookmarks.yaml` — OpenAPI spec for the
   bookmarks endpoints.
@@ -491,7 +491,7 @@ The agent re-reads both created files and confirms their content matches the dra
 The agent presents the review checklist:
 
 ```
-Pre-validation review for FEAT-2026-0042:
+Pre-validation review for INIT-2026-0042:
 
 [x] Description: substantive — states what the API does and why
 [x] Scope: prescriptive language throughout; no "expected" ambiguity
@@ -536,13 +536,13 @@ Pre-validation review for FEAT-2026-0042:
 - "QA: one authored test plan with five tests (one per acceptance criterion)." — explicit count with rationale.
 - No "expected" hedging anywhere in `## Scope`.
 
-**(c) Feature registry body sections populated without touching frontmatter:**
+**(c) Initiative registry body sections populated without touching frontmatter:**
 
 - `## Description` — two sentences of product-language content.
 - `## Scope` — five prescriptive bullets.
 - `## Out of scope` — four explicit exclusions.
 - `## Related specs` — two links to created spec files.
-- Frontmatter (`state: drafting`, `correlation_id: FEAT-2026-0042`, `task_graph: []`) is unchanged from intake.
+- Frontmatter (`state: drafting`, `correlation_id: INIT-2026-0042`, `task_graph: []`) is unchanged from intake.
 
 ## File creation verification
 
@@ -551,14 +551,14 @@ Every file the spec-drafting skill creates or updates is verified by re-reading 
 The verification applies to:
 
 - Spec files created under `/product/specs/` and `/product/features/`.
-- Feature registry body-section updates at `/features/FEAT-YYYY-NNNN.md`.
+- Initiative registry body-section updates at `/features/INIT-YYYY-NNNN.md`.
 
 If the re-read reveals a discrepancy (e.g., a write tool silently truncated content, or a concurrent edit modified the file between write and re-read), the skill corrects the file and re-verifies. Three consecutive re-read failures trigger `spinning_detected` escalation per `escalation-protocol.md`.
 
 ## What this skill does not do
 
 - It does **not** run Specfuse validation. That is the spec-validation skill's concern (WU 4.4). Phase 3 of this skill reviews readiness for validation; it does not invoke the validator.
-- It does **not** modify the feature registry frontmatter. State transitions (`drafting → validating`, etc.) are owned by the spec-validation skill. Correlation IDs and task graphs are owned by feature-intake and the PM agent respectively.
+- It does **not** modify the initiative registry frontmatter. State transitions (`drafting → validating`, etc.) are owned by the spec-validation skill. Correlation IDs and task graphs are owned by initiative-intake and the PM agent respectively.
 - It does **not** author test plans. Test plans are the QA agent's deliverable via `qa-authoring/SKILL.md`. This skill produces acceptance criteria that qa-authoring consumes — it does not produce the test plan itself.
 - It does **not** write to `/product/test-plans/`. That subtree belongs to the QA agent.
 - It does **not** write to `/business/`. That subtree is off-limits per `never-touch.md` §4.
@@ -582,10 +582,10 @@ Phase 4 does **not** introduce these integrations. The v1.0 spec-drafting skill 
 
 - `/docs/orchestrator-architecture.md` §5.1 (roles), §4.3 (test plan location), §6 (state machines).
 - `/agents/specs/CLAUDE.md` — the specs agent role config that orchestrates this skill.
-- `/agents/specs/skills/feature-intake/SKILL.md` — the preceding skill in the feature lifecycle; creates the registry entry this skill populates.
+- `/agents/specs/skills/initiative-intake/SKILL.md` — the preceding skill in the feature lifecycle; creates the registry entry this skill populates.
 - `/agents/qa/skills/qa-authoring/SKILL.md` — the downstream skill that consumes the acceptance criteria this skill produces; its `covers`, `commands`, and `expected` fields are the target shape.
 - `/shared/schemas/test-plan.schema.json` — the machine-readable contract for test plans; the acceptance criteria this skill produces must map onto the `tests[]` entries defined here.
-- `/shared/templates/feature-registry.md` — the template for feature registry entries; this skill populates the body sections.
+- `/shared/templates/feature-registry.md` — the template for initiative registry entries; this skill populates the body sections.
 - `/shared/rules/verify-before-report.md` — re-read discipline applied after every file write.
 - `/shared/rules/never-touch.md` — path prohibition; `/business/` and `/product/test-plans/` are off-limits for this skill.
 - `/shared/rules/escalation-protocol.md` — `spinning_detected` escalation on file-creation verification failures.

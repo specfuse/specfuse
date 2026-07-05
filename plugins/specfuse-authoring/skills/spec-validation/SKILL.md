@@ -23,30 +23,30 @@ When this file and the specs agent role config disagree, **the role config wins 
 
 ## Trigger
 
-The human says something like "run validation on FEAT-2026-NNNN" or "validate the specs" during a drafting session (first-pass validation) or after fixing issues surfaced by a prior run (re-validation). The trigger is conversational — there is no structured-event trigger.
+The human says something like "run validation on INIT-2026-NNNN" or "validate the specs" during a drafting session (first-pass validation) or after fixing issues surfaced by a prior run (re-validation). The trigger is conversational — there is no structured-event trigger.
 
-**Precondition.** A valid feature registry entry must exist at `/features/FEAT-YYYY-NNNN.md` with `state: drafting` (first-pass) or `state: validating` (re-validation after a failed pass). The `## Related specs` section must contain at least one spec file link — validation against zero files is a configuration error, not a pass. If the feature is in any state other than `drafting` or `validating`, the skill does not proceed — it informs the human and suggests the appropriate entry point.
+**Precondition.** A valid initiative registry entry must exist at `/features/INIT-YYYY-NNNN.md` with `state: drafting` (first-pass) or `state: validating` (re-validation after a failed pass). The `## Related specs` section must contain at least one spec file link — validation against zero files is a configuration error, not a pass. If the feature is in any state other than `drafting` or `validating`, the skill does not proceed — it informs the human and suggests the appropriate entry point.
 
 ## Inputs
 
 The skill reads, in order:
 
-1. The feature registry entry at `/features/FEAT-YYYY-NNNN.md` — its frontmatter (`correlation_id`, `state`, `involved_repos`) and its `## Related specs` body section (which lists the spec file paths to validate).
+1. The initiative registry entry at `/features/INIT-YYYY-NNNN.md` — its frontmatter (`correlation_id`, `state`, `involved_repos`) and its `## Related specs` body section (which lists the spec file paths to validate).
 2. This skill file and the specs agent role config — reloaded per `/shared/rules/role-switch-hygiene.md`.
-3. The feature's event log at `/events/FEAT-YYYY-NNNN.jsonl` — read to determine whether prior `spec_validated` and `feature_state_changed` events exist for this feature (required for idempotence guards in Steps 3 and 8).
+3. The feature's event log at `/events/INIT-YYYY-NNNN.jsonl` — read to determine whether prior `spec_validated` and `feature_state_changed` events exist for this feature (required for idempotence guards in Steps 3 and 8).
 4. Each spec file listed in `## Related specs` — read and passed to the Specfuse validator.
 
 ## Procedure
 
-### Step 1 — Read the feature registry and confirm preconditions
+### Step 1 — Read the initiative registry and confirm preconditions
 
-Read `/features/FEAT-YYYY-NNNN.md`. Extract the `state` from frontmatter and the spec file paths from the `## Related specs` section.
+Read `/features/INIT-YYYY-NNNN.md`. Extract the `state` from frontmatter and the spec file paths from the `## Related specs` section.
 
 **Extracting spec file paths.** The `## Related specs` section contains markdown list items linking to spec files. Each item follows the convention:
 
 ```markdown
 - `product/specs/<feature-slug>.yaml` — description...
-- `product/features/FEAT-YYYY-NNNN.md` — description...
+- `product/features/INIT-YYYY-NNNN.md` — description...
 ```
 
 Extract the path from the backtick-enclosed segment of each list item. The paths are relative to the product specs repo root.
@@ -57,21 +57,21 @@ Extract the path from the backtick-enclosed segment of each list item. The paths
 |---|---|
 | `state` is `drafting` | First-pass validation. Proceed to Step 2. |
 | `state` is `validating` | Re-validation. Skip Step 2 (the `drafting → validating` transition has already occurred). Proceed to Step 3. |
-| `state` is any other value | Do not proceed. Inform the human: "Feature FEAT-YYYY-NNNN is in state `<state>` — validation requires `drafting` or `validating`. If you need to re-draft, use the spec-drafting skill. If the feature is already in `planning` or beyond, the PM agent has taken over." |
-| `## Related specs` has zero file links | Do not proceed. Inform the human: "No spec files found in the feature registry's Related specs section. Use the spec-drafting skill to create at least one spec file before running validation." |
+| `state` is any other value | Do not proceed. Inform the human: "Feature INIT-YYYY-NNNN is in state `<state>` — validation requires `drafting` or `validating`. If you need to re-draft, use the spec-drafting skill. If the feature is already in `planning` or beyond, the PM agent has taken over." |
+| `## Related specs` has zero file links | Do not proceed. Inform the human: "No spec files found in the initiative registry's Related specs section. Use the spec-drafting skill to create at least one spec file before running validation." |
 
 ### Step 2 — Emit `drafting → validating` transition (first-pass only)
 
 This step runs only when the feature's current state is `drafting`. On re-validation (state is already `validating`), this step is skipped — no duplicate state-transition event is emitted.
 
-**2a.** Update the feature registry frontmatter: change `state: drafting` to `state: validating`.
+**2a.** Update the initiative registry frontmatter: change `state: drafting` to `state: validating`.
 
 **2b.** Construct the `feature_state_changed` event:
 
 | Field | Value |
 |---|---|
 | `timestamp` | `date -u +%Y-%m-%dT%H:%M:%SZ` — captured at emission time |
-| `correlation_id` | `FEAT-YYYY-NNNN` |
+| `correlation_id` | `INIT-YYYY-NNNN` |
 | `event_type` | `feature_state_changed` |
 | `source` | `specs` |
 | `source_version` | Output of `scripts/read-agent-version.sh specs` |
@@ -88,7 +88,7 @@ python3 scripts/validate-event.py --file /tmp/event.json
 Exit 0: append to the event log using the safe append pattern:
 
 ```sh
-printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-YYYY-NNNN.jsonl
+printf '%s\n' "$(cat /tmp/event.json)" >> events/INIT-YYYY-NNNN.jsonl
 ```
 
 Exit 1 or 2: diagnose, correct, re-validate. Three consecutive failures → escalate with `spinning_detected`.
@@ -121,11 +121,11 @@ Construct the `spec_validated` event with the aggregated results:
 | Field | Value |
 |---|---|
 | `timestamp` | `date -u +%Y-%m-%dT%H:%M:%SZ` — captured at emission time |
-| `correlation_id` | `FEAT-YYYY-NNNN` |
+| `correlation_id` | `INIT-YYYY-NNNN` |
 | `event_type` | `spec_validated` |
 | `source` | `specs` |
 | `source_version` | Output of `scripts/read-agent-version.sh specs` |
-| `payload.feature_correlation_id` | `FEAT-YYYY-NNNN` |
+| `payload.feature_correlation_id` | `INIT-YYYY-NNNN` |
 | `payload.pass` | `true` or `false` |
 | `payload.spec_files_checked` | Array of paths from Step 3 |
 | `payload.errors` | Array of error objects from Step 3 (empty on pass) |
@@ -136,7 +136,7 @@ Write to `/tmp/event.json`, validate, and append:
 ```sh
 python3 scripts/validate-event.py --file /tmp/event.json
 # Exit 0 → append
-printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-YYYY-NNNN.jsonl
+printf '%s\n' "$(cat /tmp/event.json)" >> events/INIT-YYYY-NNNN.jsonl
 ```
 
 Three consecutive validation failures → `spinning_detected` escalation.
@@ -158,7 +158,7 @@ The skill does **not** dump raw validator output. For each error in the `errors`
 **Presentation format:**
 
 ```
-Validation failed for FEAT-YYYY-NNNN — N error(s) across M file(s).
+Validation failed for INIT-YYYY-NNNN — N error(s) across M file(s).
 
 ──────────────────────────────────────────────────────────────────
 
@@ -191,11 +191,11 @@ After presenting the feedback, the skill's work for this run is complete. The hu
 On a clean pass:
 
 ```
-Validation passed for FEAT-YYYY-NNNN — N file(s) checked, 0 errors.
+Validation passed for INIT-YYYY-NNNN — N file(s) checked, 0 errors.
 
 Files validated:
   - product/specs/<feature-slug>.yaml  ✓
-  - product/features/FEAT-YYYY-NNNN.md ✓
+  - product/features/INIT-YYYY-NNNN.md ✓
 
 Proceeding to hand off to the PM agent for task decomposition.
 ```
@@ -204,21 +204,21 @@ Proceeding to hand off to the PM agent for task decomposition.
 
 This step runs only on a clean validation pass (`pass` is `true`).
 
-**8a. Idempotence guard.** Read the event log at `/events/FEAT-YYYY-NNNN.jsonl`. Scan for a prior `feature_state_changed` event where `payload.from_state` is `validating` and `payload.to_state` is `planning`. If found, the transition has already been emitted (e.g., the human ran validation again after a prior clean pass without any intervening changes) — skip the rest of this step and report:
+**8a. Idempotence guard.** Read the event log at `/events/INIT-YYYY-NNNN.jsonl`. Scan for a prior `feature_state_changed` event where `payload.from_state` is `validating` and `payload.to_state` is `planning`. If found, the transition has already been emitted (e.g., the human ran validation again after a prior clean pass without any intervening changes) — skip the rest of this step and report:
 
 ```
-Feature FEAT-YYYY-NNNN has already transitioned to `planning`.
+Feature INIT-YYYY-NNNN has already transitioned to `planning`.
 The PM agent can pick up the feature for task decomposition.
 ```
 
-**8b.** Update the feature registry frontmatter: change `state: validating` to `state: planning`.
+**8b.** Update the initiative registry frontmatter: change `state: validating` to `state: planning`.
 
 **8c.** Construct the `feature_state_changed` event:
 
 | Field | Value |
 |---|---|
 | `timestamp` | `date -u +%Y-%m-%dT%H:%M:%SZ` — captured at emission time |
-| `correlation_id` | `FEAT-YYYY-NNNN` |
+| `correlation_id` | `INIT-YYYY-NNNN` |
 | `event_type` | `feature_state_changed` |
 | `source` | `specs` |
 | `source_version` | Output of `scripts/read-agent-version.sh specs` |
@@ -231,13 +231,13 @@ The PM agent can pick up the feature for task decomposition.
 ```sh
 python3 scripts/validate-event.py --file /tmp/event.json
 # Exit 0 → append
-printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-YYYY-NNNN.jsonl
+printf '%s\n' "$(cat /tmp/event.json)" >> events/INIT-YYYY-NNNN.jsonl
 ```
 
 **8e.** Report completion:
 
 ```
-Feature FEAT-YYYY-NNNN is ready for PM planning.
+Feature INIT-YYYY-NNNN is ready for PM planning.
 
 State: validating → planning
 Trigger: validation_passed
@@ -251,8 +251,8 @@ This is the last action the specs agent takes on this feature's forward path. Af
 
 Per `verify-before-report.md`:
 
-1. Re-read `/features/FEAT-YYYY-NNNN.md` and confirm the `state` field matches the expected value (`validating` on failure, `planning` on success).
-2. Re-read `/events/FEAT-YYYY-NNNN.jsonl` and round-trip the most recent event(s) through `validate-event.py` with exit 0.
+1. Re-read `/features/INIT-YYYY-NNNN.md` and confirm the `state` field matches the expected value (`validating` on failure, `planning` on success).
+2. Re-read `/events/INIT-YYYY-NNNN.jsonl` and round-trip the most recent event(s) through `validate-event.py` with exit 0.
 3. If the `validating → planning` transition was emitted: confirm no written path is in `never-touch.md`.
 
 Three consecutive re-read failures → `spinning_detected` escalation per `escalation-protocol.md`.
@@ -284,7 +284,7 @@ Every validation run (pass or fail) produces a `spec_validated` event. The per-t
 
 | Field | Type | Description |
 |---|---|---|
-| `feature_correlation_id` | `string` | `FEAT-YYYY-NNNN` — duplicated from envelope for payload self-containment |
+| `feature_correlation_id` | `string` | `INIT-YYYY-NNNN` — duplicated from envelope for payload self-containment |
 | `pass` | `boolean` | `true` if all files pass; `false` if any file has errors |
 | `spec_files_checked` | `string[]` | Paths checked, relative to product specs repo root |
 | `errors` | `object[]` | Structured error objects (empty on pass) |
@@ -353,12 +353,12 @@ A realistic validation session for a feature with two spec files, demonstrating 
 
 ---
 
-**Context.** The human has drafted specs for `FEAT-2026-0042` (Inventory API bookmarks). The feature registry at `/features/FEAT-2026-0042.md` has `state: drafting` and the following `## Related specs` section:
+**Context.** The human has drafted specs for `INIT-2026-0042` (Inventory API bookmarks). The initiative registry at `/features/INIT-2026-0042.md` has `state: drafting` and the following `## Related specs` section:
 
 ```markdown
 ## Related specs
 
-- `product/features/FEAT-2026-0042.md` — feature narrative with acceptance
+- `product/features/INIT-2026-0042.md` — feature narrative with acceptance
   criteria (AC-1 through AC-5).
 - `product/specs/inventory-api-bookmarks.yaml` — OpenAPI spec for the
   bookmarks endpoints.
@@ -368,11 +368,11 @@ A realistic validation session for a feature with two spec files, demonstrating 
 
 ### First validation run — failure
 
-**Human:** "Run validation on FEAT-2026-0042."
+**Human:** "Run validation on INIT-2026-0042."
 
 **Step 1 — Precondition check:**
 
-The skill reads `/features/FEAT-2026-0042.md`. State is `drafting`. Two spec files found in `## Related specs`. Preconditions pass.
+The skill reads `/features/INIT-2026-0042.md`. State is `drafting`. Two spec files found in `## Related specs`. Preconditions pass.
 
 **Step 2 — Emit `drafting → validating`:**
 
@@ -386,13 +386,13 @@ SOURCE_VERSION=$(scripts/read-agent-version.sh specs)
 
 # Construct event
 cat > /tmp/event.json << EOF
-{"timestamp":"${TIMESTAMP}","correlation_id":"FEAT-2026-0042","event_type":"feature_state_changed","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"from_state":"drafting","to_state":"validating","trigger":"validation_requested"}}
+{"timestamp":"${TIMESTAMP}","correlation_id":"INIT-2026-0042","event_type":"feature_state_changed","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"from_state":"drafting","to_state":"validating","trigger":"validation_requested"}}
 EOF
 
 # Validate and append
 python3 scripts/validate-event.py --file /tmp/event.json
 # Exit 0
-printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-2026-0042.jsonl
+printf '%s\n' "$(cat /tmp/event.json)" >> events/INIT-2026-0042.jsonl
 ```
 
 **Step 3 — Invoke Specfuse validator:**
@@ -401,7 +401,7 @@ printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-2026-0042.jsonl
 VALIDATOR_VERSION=$(specfuse --version)
 # → "1.0.0"
 
-specfuse validate product/features/FEAT-2026-0042.md
+specfuse validate product/features/INIT-2026-0042.md
 # Exit 0 — narrative spec passes
 
 specfuse validate product/specs/inventory-api-bookmarks.yaml
@@ -430,12 +430,12 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 SOURCE_VERSION=$(scripts/read-agent-version.sh specs)
 
 cat > /tmp/event.json << EOF
-{"timestamp":"${TIMESTAMP}","correlation_id":"FEAT-2026-0042","event_type":"spec_validated","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"feature_correlation_id":"FEAT-2026-0042","pass":false,"spec_files_checked":["product/features/FEAT-2026-0042.md","product/specs/inventory-api-bookmarks.yaml"],"errors":[{"file":"product/specs/inventory-api-bookmarks.yaml","line":18,"message":"missing required property: operationId","severity":"error"}],"validator_version":"1.0.0"}}
+{"timestamp":"${TIMESTAMP}","correlation_id":"INIT-2026-0042","event_type":"spec_validated","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"feature_correlation_id":"INIT-2026-0042","pass":false,"spec_files_checked":["product/features/INIT-2026-0042.md","product/specs/inventory-api-bookmarks.yaml"],"errors":[{"file":"product/specs/inventory-api-bookmarks.yaml","line":18,"message":"missing required property: operationId","severity":"error"}],"validator_version":"1.0.0"}}
 EOF
 
 python3 scripts/validate-event.py --file /tmp/event.json
 # Exit 0
-printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-2026-0042.jsonl
+printf '%s\n' "$(cat /tmp/event.json)" >> events/INIT-2026-0042.jsonl
 ```
 
 **Step 5 — Branch:** `pass` is `false` → proceed to Step 6.
@@ -445,7 +445,7 @@ printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-2026-0042.jsonl
 The skill looks up `missing required property: operationId` in the interpretation table. Match found. Presents:
 
 ```
-Validation failed for FEAT-2026-0042 — 1 error across 2 files.
+Validation failed for INIT-2026-0042 — 1 error across 2 files.
 
 ──────────────────────────────────────────────────────────────────
 
@@ -492,7 +492,7 @@ Registry state is `validating`. Two spec files in `## Related specs`. Preconditi
 VALIDATOR_VERSION=$(specfuse --version)
 # → "1.0.0"
 
-specfuse validate product/features/FEAT-2026-0042.md
+specfuse validate product/features/INIT-2026-0042.md
 # Exit 0
 
 specfuse validate product/specs/inventory-api-bookmarks.yaml
@@ -508,12 +508,12 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 SOURCE_VERSION=$(scripts/read-agent-version.sh specs)
 
 cat > /tmp/event.json << EOF
-{"timestamp":"${TIMESTAMP}","correlation_id":"FEAT-2026-0042","event_type":"spec_validated","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"feature_correlation_id":"FEAT-2026-0042","pass":true,"spec_files_checked":["product/features/FEAT-2026-0042.md","product/specs/inventory-api-bookmarks.yaml"],"errors":[],"validator_version":"1.0.0"}}
+{"timestamp":"${TIMESTAMP}","correlation_id":"INIT-2026-0042","event_type":"spec_validated","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"feature_correlation_id":"INIT-2026-0042","pass":true,"spec_files_checked":["product/features/INIT-2026-0042.md","product/specs/inventory-api-bookmarks.yaml"],"errors":[],"validator_version":"1.0.0"}}
 EOF
 
 python3 scripts/validate-event.py --file /tmp/event.json
 # Exit 0
-printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-2026-0042.jsonl
+printf '%s\n' "$(cat /tmp/event.json)" >> events/INIT-2026-0042.jsonl
 ```
 
 **Step 5 — Branch:** `pass` is `true` → proceed to Step 7, then Step 8.
@@ -521,10 +521,10 @@ printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-2026-0042.jsonl
 **Step 7 — Success summary:**
 
 ```
-Validation passed for FEAT-2026-0042 — 2 files checked, 0 errors.
+Validation passed for INIT-2026-0042 — 2 files checked, 0 errors.
 
 Files validated:
-  - product/features/FEAT-2026-0042.md            ✓
+  - product/features/INIT-2026-0042.md            ✓
   - product/specs/inventory-api-bookmarks.yaml     ✓
 
 Proceeding to hand off to the PM agent for task decomposition.
@@ -532,7 +532,7 @@ Proceeding to hand off to the PM agent for task decomposition.
 
 **Step 8 — Emit `validating → planning`:**
 
-**8a.** Idempotence guard: scan event log for `feature_state_changed(validating → planning)` on FEAT-2026-0042. Not found — this is the first clean pass. Proceed.
+**8a.** Idempotence guard: scan event log for `feature_state_changed(validating → planning)` on INIT-2026-0042. Not found — this is the first clean pass. Proceed.
 
 **8b.** Update registry frontmatter: `state: validating` → `state: planning`.
 
@@ -543,18 +543,18 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 SOURCE_VERSION=$(scripts/read-agent-version.sh specs)
 
 cat > /tmp/event.json << EOF
-{"timestamp":"${TIMESTAMP}","correlation_id":"FEAT-2026-0042","event_type":"feature_state_changed","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"from_state":"validating","to_state":"planning","trigger":"validation_passed"}}
+{"timestamp":"${TIMESTAMP}","correlation_id":"INIT-2026-0042","event_type":"feature_state_changed","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"from_state":"validating","to_state":"planning","trigger":"validation_passed"}}
 EOF
 
 python3 scripts/validate-event.py --file /tmp/event.json
 # Exit 0
-printf '%s\n' "$(cat /tmp/event.json)" >> events/FEAT-2026-0042.jsonl
+printf '%s\n' "$(cat /tmp/event.json)" >> events/INIT-2026-0042.jsonl
 ```
 
 **8e.** Report:
 
 ```
-Feature FEAT-2026-0042 is ready for PM planning.
+Feature INIT-2026-0042 is ready for PM planning.
 
 State: validating → planning
 Trigger: validation_passed
@@ -568,7 +568,7 @@ this feature.
 
 ### Event log after the worked example
 
-The event log at `/events/FEAT-2026-0042.jsonl` contains four entries (plus the `feature_created` from intake):
+The event log at `/events/INIT-2026-0042.jsonl` contains four entries (plus the `feature_created` from intake):
 
 | # | `event_type` | Key payload fields |
 |---|---|---|
@@ -589,9 +589,9 @@ The event log at `/events/FEAT-2026-0042.jsonl` contains four entries (plus the 
 
 | Artifact | Path | Validated against |
 |---|---|---|
-| Feature registry entry (state update) | `/features/FEAT-YYYY-NNNN.md` | `feature-frontmatter.schema.json` via `validate-frontmatter.py` |
-| `feature_state_changed` event(s) | `/events/FEAT-YYYY-NNNN.jsonl` | `event.schema.json` + `feature_state_changed.schema.json` via `validate-event.py` |
-| `spec_validated` event | `/events/FEAT-YYYY-NNNN.jsonl` | `event.schema.json` + `spec_validated.schema.json` via `validate-event.py` |
+| Initiative registry entry (state update) | `/features/INIT-YYYY-NNNN.md` | `feature-frontmatter.schema.json` via `validate-frontmatter.py` |
+| `feature_state_changed` event(s) | `/events/INIT-YYYY-NNNN.jsonl` | `event.schema.json` + `feature_state_changed.schema.json` via `validate-event.py` |
+| `spec_validated` event | `/events/INIT-YYYY-NNNN.jsonl` | `event.schema.json` + `spec_validated.schema.json` via `validate-event.py` |
 
 ## Schemas consumed
 
@@ -637,7 +637,7 @@ The event log at `/events/FEAT-2026-0042.jsonl` contains four entries (plus the 
 - `/docs/orchestrator-architecture.md` §6.1 (feature state machine), §6.3 (transition ownership).
 - `/agents/specs/CLAUDE.md` — the specs agent role config that orchestrates this skill.
 - `/agents/specs/skills/spec-drafting/SKILL.md` — the preceding skill that produces the spec files this skill validates; also the skill the human returns to when fixing validation failures.
-- `/agents/specs/skills/feature-intake/SKILL.md` — the intake skill that creates the feature registry entry this skill reads and updates.
+- `/agents/specs/skills/initiative-intake/SKILL.md` — the intake skill that creates the initiative registry entry this skill reads and updates.
 - `/agents/pm/skills/task-decomposition/SKILL.md` — the downstream skill that consumes the `planning` state this skill produces; the PM handoff target.
 - `/shared/schemas/event.schema.json` — event envelope schema.
 - `/shared/schemas/events/feature_state_changed.schema.json` — per-type schema for state transitions.
