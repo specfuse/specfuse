@@ -2,10 +2,7 @@
 # regenerated from each plugin's source repo by specfuse/publish.py and enforced
 # by the plugin-drift-guard workflow (the load-bearing check). This CODEOWNERS
 # entry is defense-in-depth: require maintainer review on any plugins/ change so a
-# hand-edit is caught before CI even runs.
-#
-# TODO(maintainer): replace @specfuse-maintainers with the real maintainer handle
-# or team, and enable branch protection on `plugins/` + require the
-# `plugin-drift-guard` status check.
-/plugins/                       @specfuse-maintainers
-/.claude-plugin/marketplace.json @specfuse-maintainers
+# hand-edit is caught before CI even runs. The "Protect main" ruleset requires
+# code-owner review here + the `plugin-drift-guard` status check.
+/plugins/                       @clabonte
+/.claude-plugin/marketplace.json @clabonte
