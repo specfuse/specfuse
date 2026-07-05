@@ -10,20 +10,14 @@
 # Make this a REQUIRED status check in branch protection for it to actually block.
 name: plugin-drift-guard
 
+# Runs on EVERY pull request (no path filter) on purpose: this is a REQUIRED
+# status check, and a path-filtered required check leaves PRs that don't touch
+# those paths permanently "expected" (BLOCKED). The work is cheap — a shallow
+# clone + diff per managed plugin — and passes unless there is real drift.
 on:
   pull_request:
-    paths:
-      - "plugins/**"
-      - ".claude-plugin/marketplace.json"
-      - "specfuse/publish.py"
-      - "tests/test_publish.py"
-      - ".github/workflows/plugin-drift-guard.yml"
   push:
     branches: [main]
-    paths:
-      - "plugins/**"
-      - ".claude-plugin/marketplace.json"
-      - "specfuse/publish.py"
 
 jobs:
   drift-guard:
