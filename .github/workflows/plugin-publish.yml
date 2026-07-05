@@ -1,0 +1,103 @@
+# Marketplace publish-on-release receiver.
+#
+# A source repo, after publishing its package to PyPI, fires a `plugin-release`
+# repository_dispatch here with { plugin, version }. This workflow regenerates
+# that plugin from the source repo at tag v<version>, stamps the version, and —
+# only if the committed copy actually changed — opens a PR. The PR then passes
+# through plugin-drift-guard like any other change (it will, being a faithful
+# publish) and a human merges it.
+#
+# workflow_dispatch is provided for manual runs / testing.
+name: plugin-publish
+
+on:
+  repository_dispatch:
+    types: [plugin-release]
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: plugin name (must be `managed` in marketplace.json)
+        required: true
+      version:
+        description: released version (matches the source tag vX.Y.Z)
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve plugin + version
+        id: in
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "plugin=${{ github.event.client_payload.plugin }}"   >> "$GITHUB_OUTPUT"
+            echo "version=${{ github.event.client_payload.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "plugin=${{ inputs.plugin }}"   >> "$GITHUB_OUTPUT"
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Look up source_repo + managed flag
+        id: meta
+        env:
+          PLUGIN: ${{ steps.in.outputs.plugin }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          name = os.environ["PLUGIN"]
+          m = json.load(open(".claude-plugin/marketplace.json"))
+          e = next((p for p in m["plugins"] if p["name"] == name), None)
+          if e is None:
+              raise SystemExit(f"error: {name} not listed in marketplace.json")
+          print("source_repo=" + e["source_repo"])
+          print("managed=" + ("true" if e.get("managed") is True else "false"))
+          PY
+
+      - name: Skip unmanaged plugin
+        if: steps.meta.outputs.managed != 'true'
+        run: echo "::notice::${{ steps.in.outputs.plugin }} is not managed yet — nothing to publish."
+
+      - name: Regenerate the plugin from source@version
+        if: steps.meta.outputs.managed == 'true'
+        id: pub
+        run: |
+          set -euo pipefail
+          src="$(mktemp -d)"
+          git clone --depth 1 --branch "v${{ steps.in.outputs.version }}" \
+            "https://github.com/${{ steps.meta.outputs.source_repo }}.git" "$src/repo"
+          python -m specfuse.publish "${{ steps.in.outputs.plugin }}" \
+            --source "$src/repo" --version "${{ steps.in.outputs.version }}"
+          if git diff --quiet -- plugins/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open a publish PR (only if changed)
+        if: steps.pub.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          name="${{ steps.in.outputs.plugin }}"
+          ver="${{ steps.in.outputs.version }}"
+          branch="publish/${name}-${ver}"
+          git config user.name  "specfuse-publish-bot"
+          git config user.email "publish-bot@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add plugins/
+          git commit -m "chore(publish): ${name} @ ${ver} (from ${{ steps.meta.outputs.source_repo }})"
+          git push --force-with-lease origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore(publish): ${name} @ ${ver}" \
+            --body "Automated marketplace publish, triggered by the \`${{ steps.meta.outputs.source_repo }}\` release \`v${ver}\`. Regenerated \`plugins/${name}/\` from source@\`v${ver}\` and stamped the version. The drift-guard verifies this is a faithful publish."
