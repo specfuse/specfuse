@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "specfuse-authoring",
   "displayName": "Specfuse Authoring",
-  "version": "0.1.0",
+  "version": "0.3.2",
   "description": "Spec-authoring skills: design API endpoints, async events, Arazzo scenarios and setup recipes against the Specfuse handbooks, then validate and bundle. Pairs with the specfuse-authoring CLI (pip install specfuse-authoring).",
   "author": {
     "name": "Specfuse contributors"
@@ -10,5 +10,13 @@
   "homepage": "https://github.com/specfuse/authoring",
   "repository": "https://github.com/specfuse/specfuse",
   "license": "Apache-2.0",
-  "keywords": ["specfuse", "openapi", "asyncapi", "arazzo", "spec-authoring", "codegen", "spec-driven"]
+  "keywords": [
+    "specfuse",
+    "openapi",
+    "asyncapi",
+    "arazzo",
+    "spec-authoring",
+    "codegen",
+    "spec-driven"
+  ]
 }

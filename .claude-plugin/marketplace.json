@@ -15,7 +15,8 @@
     {
       "name": "specfuse-authoring",
       "source": "./plugins/specfuse-authoring",
-      "source_repo": "specfuse/authoring"
+      "source_repo": "specfuse/authoring",
+      "managed": true
     },
     {
       "name": "specfuse-orchestrator",
