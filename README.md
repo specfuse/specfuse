@@ -29,20 +29,24 @@ This repo also ships the **`specfuse`** pip package — the umbrella CLI that br
 the pip-installed driver and this plugin:
 
 ```
-pipx install specfuse                  # recommended (CLI app); pulls specfuse-loop too
-pipx install 'specfuse[orchestrator]'  # + the multi-repo orchestrator
-pipx install 'specfuse[authoring]'     # + the spec-authoring kit
-pipx install 'specfuse[all]'           # the whole suite in one command
-#   gives you: specfuse / specfuse-loop / specfuse-lint (+ the extras' CLIs)
-#   (quote the brackets — zsh globs them; or: python3 -m pip install 'specfuse[all]')
+pipx install specfuse                                # driver only; gives specfuse / specfuse-loop / specfuse-lint
+pipx install --include-deps 'specfuse[orchestrator]' # + the multi-repo orchestrator
+pipx install --include-deps 'specfuse[authoring]'    # + the spec-authoring kit
+pipx install --include-deps 'specfuse[all]'          # the whole suite in one command
 specfuse init <repo>          # scaffold .specfuse/ + wire .claude/ (--dry-run previews)
 specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade driver + CLI, point at /plugin update
 ```
 
-> Extras are only re-resolved on a fresh install — to add one to an existing
-> install, use `pipx install --force 'specfuse[all]'` (or `pipx inject specfuse
-> specfuse-orchestrator specfuse-authoring`). `pipx upgrade` alone won't pull a
-> newly-added extra.
+> **`--include-deps` is required for the extras' CLIs.** pipx only exposes the main
+> package's own console scripts; the orchestrator/authoring commands
+> (`specfuse-orchestrator`, `specfuse-poller`, `specfuse-authoring`, …) live in the
+> extra packages, so `--include-deps` is what surfaces them on PATH. Without it the
+> extra is *installed* but its commands aren't linked.
+>
+> **Quote the brackets** — zsh globs them (`'specfuse[all]'`). And extras are only
+> re-resolved on a *fresh* install — to add one to an existing install use
+> `pipx install --force --include-deps 'specfuse[all]'`; `pipx upgrade` alone won't
+> pull a newly-added extra.
 
 > A bare `pip install` into a system Python is blocked on PEP-668
 > externally-managed environments (Debian/Ubuntu, Homebrew). Use `pipx` (then
