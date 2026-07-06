@@ -43,11 +43,15 @@ jobs:
           # coordinated-release order). The old --no-deps path predated the
           # rewire and now fails with ModuleNotFoundError: No module named
           # 'specfuse.loop'.
-          /tmp/relenv/bin/python -m pip install "$WHEEL"
+          # + pytest: tests/ now includes pytest-based suites (test_publish.py for
+          # the marketplace publish mechanism), so run under pytest, which also
+          # collects the unittest.TestCase suites. `unittest discover` chokes on the
+          # pytest imports.
+          /tmp/relenv/bin/python -m pip install "$WHEEL" pytest
           /tmp/relenv/bin/python -c "import specfuse.cli as c; print('import OK', c.__version__)"
           /tmp/relenv/bin/specfuse --version
           # Run the test suite from the repo (against the installed package).
-          /tmp/relenv/bin/python -m unittest discover -s tests -v
+          /tmp/relenv/bin/python -m pytest tests/ -q
 
       - name: Tag/version agreement check
         if: startsWith(github.ref, 'refs/tags/v')
