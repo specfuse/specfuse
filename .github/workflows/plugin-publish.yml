@@ -31,7 +31,15 @@ jobs:
     env:
       PYTHONPATH: .
     steps:
+      # Check out with a PAT (if provided) so the branch push + PR are attributed to a
+      # real actor — GitHub does NOT run workflows on events created by GITHUB_TOKEN, so
+      # a github.token push would leave the required plugin-drift-guard check un-triggered
+      # (the PR would sit BLOCKED). MARKETPLACE_PUBLISH_TOKEN needs Contents + Pull
+      # requests: write on this repo. Falls back to github.token (auto-publish PR still
+      # opens, but its drift-guard must be nudged manually before merge).
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.MARKETPLACE_PUBLISH_TOKEN || github.token }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -86,7 +94,7 @@ jobs:
       - name: Open a publish PR (only if changed)
         if: steps.pub.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.MARKETPLACE_PUBLISH_TOKEN || github.token }}
         run: |
           set -euo pipefail
           name="${{ steps.in.outputs.plugin }}"
