@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specfuse"
-version = "0.2.9"
+version = "0.3.0"
 description = "Specfuse umbrella CLI — bridges the pip-installed driver and the Claude Code plugin (init / upgrade)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,6 +34,12 @@ dev = ["coverage>=7.0", "ruff>=0.6"]
 # dependency (unlike specfuse-loop) — it runs at one coordination point, not in
 # every consumer. `pipx install specfuse[orchestrator]`.
 orchestrator = ["specfuse-orchestrator>=0.3.0"]
+# Opt-in extra: the spec-authoring kit (design/validate OpenAPI/AsyncAPI/Arazzo +
+# the specs agent). `pipx install specfuse[authoring]`.
+authoring = ["specfuse-authoring>=0.3.0"]
+# Everything: the driver (default dep) + orchestrator + authoring, so
+# `pipx install specfuse[all]` installs the whole suite in one command.
+all = ["specfuse-orchestrator>=0.3.0", "specfuse-authoring>=0.3.0"]
 
 [project.scripts]
 specfuse = "specfuse.cli:main"

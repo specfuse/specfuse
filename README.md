@@ -29,12 +29,20 @@ This repo also ships the **`specfuse`** pip package — the umbrella CLI that br
 the pip-installed driver and this plugin:
 
 ```
-pipx install specfuse         # recommended (CLI app); pulls specfuse-loop too
-#   gives you: specfuse / specfuse-loop / specfuse-lint
-#   (or, inside a venv you control: python3 -m pip install specfuse)
+pipx install specfuse                  # recommended (CLI app); pulls specfuse-loop too
+pipx install 'specfuse[orchestrator]'  # + the multi-repo orchestrator
+pipx install 'specfuse[authoring]'     # + the spec-authoring kit
+pipx install 'specfuse[all]'           # the whole suite in one command
+#   gives you: specfuse / specfuse-loop / specfuse-lint (+ the extras' CLIs)
+#   (quote the brackets — zsh globs them; or: python3 -m pip install 'specfuse[all]')
 specfuse init <repo>          # scaffold .specfuse/ + wire .claude/ (--dry-run previews)
 specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade driver + CLI, point at /plugin update
 ```
+
+> Extras are only re-resolved on a fresh install — to add one to an existing
+> install, use `pipx install --force 'specfuse[all]'` (or `pipx inject specfuse
+> specfuse-orchestrator specfuse-authoring`). `pipx upgrade` alone won't pull a
+> newly-added extra.
 
 > A bare `pip install` into a system Python is blocked on PEP-668
 > externally-managed environments (Debian/Ubuntu, Homebrew). Use `pipx` (then
