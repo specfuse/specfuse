@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specfuse"
-version = "0.3.2"
+version = "0.3.3"
 description = "Specfuse umbrella CLI — bridges the pip-installed driver and the Claude Code plugin (init / upgrade)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,7 +25,7 @@ classifiers = [
 # `specfuse.loop.scaffold`, which only exists in specfuse-loop 0.3.0+ (added by
 # FEAT-2026-0026). A 0.2.x driver would import-fail at `specfuse init`.
 dependencies = [
-  "specfuse-loop>=0.3.12",
+  "specfuse-loop>=0.3.13",
 ]
 
 [project.optional-dependencies]
@@ -33,13 +33,13 @@ dev = ["coverage>=7.0", "ruff>=0.6"]
 # Opt-in extra: the multi-repo initiative-coordination component. NOT a default
 # dependency (unlike specfuse-loop) — it runs at one coordination point, not in
 # every consumer. `pipx install specfuse[orchestrator]`.
-orchestrator = ["specfuse-orchestrator>=0.3.0"]
+orchestrator = ["specfuse-orchestrator>=0.4.1"]
 # Opt-in extra: the spec-authoring kit (design/validate OpenAPI/AsyncAPI/Arazzo +
 # the specs agent). `pipx install specfuse[authoring]`.
 authoring = ["specfuse-authoring>=0.3.0"]
 # Everything: the driver (default dep) + orchestrator + authoring, so
 # `pipx install specfuse[all]` installs the whole suite in one command.
-all = ["specfuse-orchestrator>=0.3.0", "specfuse-authoring>=0.3.0"]
+all = ["specfuse-orchestrator>=0.4.1", "specfuse-authoring>=0.3.0"]
 
 [project.scripts]
 specfuse = "specfuse.cli:main"
