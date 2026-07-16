@@ -37,6 +37,21 @@ specfuse init <repo>          # scaffold .specfuse/ + wire .claude/ (--dry-run p
 specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade driver + CLI, point at /plugin update
 ```
 
+Or install with **[uv](https://docs.astral.sh/uv/)** (`uv tool`) — a single standalone
+binary with the same isolated-env-on-PATH model as pipx, and the **recommended path
+on Windows** (it sidesteps the pipx/Python-3.14 bug noted below):
+
+```
+uv tool install specfuse                             # core: specfuse / specfuse-loop / specfuse-lint
+uv tool install --with-executables-from specfuse-orchestrator,specfuse-authoring 'specfuse[all]'   # whole suite
+uv tool upgrade specfuse                             # upgrade (re-resolves, like pipx upgrade)
+```
+
+> **`--with-executables-from` is uv's `--include-deps`.** `uv tool install specfuse`
+> exposes only the umbrella's own scripts; the orchestrator/authoring commands live
+> in the extra packages, so name them in `--with-executables-from` to put them on
+> PATH. uv also manages its own Python, so a system Python 3.14 doesn't affect it.
+
 > **`--include-deps` is required for the extras' CLIs.** pipx only exposes the main
 > package's own console scripts; the orchestrator/authoring commands
 > (`specfuse-orchestrator`, `specfuse-poller`, `specfuse-authoring`, …) live in the
@@ -64,18 +79,22 @@ specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade drive
 > doesn't help either (they're recreated and re-trigger it). Same 3.14/Windows
 > class as [pypa/pipx#1723](https://github.com/pypa/pipx/issues/1723).
 >
-> **Install without pipx** (a venv + pip bypasses the broken code path):
+> **Use uv instead** (recommended) — uv's `tool` model is pipx-equivalent (isolated
+> env, shims on PATH, one-line install/upgrade) but uses its own launcher machinery,
+> so it doesn't hit this bug:
 >
 > ```powershell
-> py -m venv "$env:USERPROFILE\.specfuse-venv"
-> & "$env:USERPROFILE\.specfuse-venv\Scripts\pip" install "specfuse[all]"
-> & "$env:USERPROFILE\.specfuse-venv\Scripts\specfuse" --version
-> # add "$env:USERPROFILE\.specfuse-venv\Scripts" to PATH for the CLIs
+> powershell -c "irm https://astral.sh/uv/install.ps1 | iex"   # one-time: install uv
+> uv tool install specfuse                                     # core CLIs
+> uv tool install --with-executables-from specfuse-orchestrator,specfuse-authoring 'specfuse[all]'   # whole suite
+> specfuse --version
+> uv tool upgrade specfuse                                     # upgrade later
 > ```
 >
-> If you specifically want pipx, install pipx itself under **Python 3.13** (so its
-> own process isn't 3.14) and retry. Delete any leftover broken launchers first:
-> `del "$env:USERPROFILE\.local\bin\specfuse*.exe"`.
+> If you must stay on pipx: delete any leftover broken launchers
+> (`del "$env:USERPROFILE\.local\bin\specfuse*.exe"`) and run pipx itself under
+> **Python 3.13** so its own process isn't 3.14. A plain `py -m venv` + `pip install
+> "specfuse[all]"` also works (you manage PATH yourself).
 
 `specfuse init` lays down `.specfuse/` (templates, rules, docs, `verification.yml`)
 and merge-safely wires `.claude/` (including this plugin's config) — pip-native
