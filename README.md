@@ -53,20 +53,29 @@ specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade drive
 > `pipx upgrade specfuse`) or a virtualenv, so `specfuse-loop` / `specfuse-lint`
 > land on PATH for the gate commands to find.
 >
-> **Windows: `pipx install` crashes with `UnicodeDecodeError` after a successful
-> install.** If the output shows `Successfully installed … specfuse-…` followed by
-> `⚠️ File exists at …\.local\bin\specfuse*.exe and does not match …` and then a
-> `UnicodeDecodeError: … can't decode byte 0x89 …` traceback, the packages
-> installed fine — the crash is pipx's post-install cleanup choking on **stale
-> `specfuse*.exe` launchers** left in `%USERPROFILE%\.local\bin` by an earlier
-> non-pipx install (e.g. a prior `pip install --user`). Clear them and reinstall:
+> **Windows + Python 3.14: `pipx install` crashes with `UnicodeDecodeError`.**
+> If the output shows `Successfully installed … specfuse-…` and then a
+> `UnicodeDecodeError: … can't decode byte 0x89 …` traceback ending in pipx's
+> `_copy_launcher_targets_venv → os.fsdecode(...)`, the packages installed fine —
+> this is an **upstream pipx bug on Python 3.14/Windows**, not a specfuse defect.
+> pipx copies the console-script `.exe` launchers into `%USERPROFILE%\.local\bin`
+> and its post-install cleanup then mis-reads them. `--force` re-copies and
+> re-scans the same launchers, so it hits the identical crash; deleting the shims
+> doesn't help either (they're recreated and re-trigger it). Same 3.14/Windows
+> class as [pypa/pipx#1723](https://github.com/pypa/pipx/issues/1723).
+>
+> **Install without pipx** (a venv + pip bypasses the broken code path):
 >
 > ```powershell
-> del "$env:USERPROFILE\.local\bin\specfuse.exe","$env:USERPROFILE\.local\bin\specfuse-loop.exe","$env:USERPROFILE\.local\bin\specfuse-lint.exe"
-> pipx install --force specfuse[all]
-> pipx ensurepath
-> specfuse --version
+> py -m venv "$env:USERPROFILE\.specfuse-venv"
+> & "$env:USERPROFILE\.specfuse-venv\Scripts\pip" install "specfuse[all]"
+> & "$env:USERPROFILE\.specfuse-venv\Scripts\specfuse" --version
+> # add "$env:USERPROFILE\.specfuse-venv\Scripts" to PATH for the CLIs
 > ```
+>
+> If you specifically want pipx, install pipx itself under **Python 3.13** (so its
+> own process isn't 3.14) and retry. Delete any leftover broken launchers first:
+> `del "$env:USERPROFILE\.local\bin\specfuse*.exe"`.
 
 `specfuse init` lays down `.specfuse/` (templates, rules, docs, `verification.yml`)
 and merge-safely wires `.claude/` (including this plugin's config) — pip-native
