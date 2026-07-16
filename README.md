@@ -51,6 +51,13 @@ uv tool upgrade specfuse                             # upgrade (re-resolves, lik
 > exposes only the umbrella's own scripts; the orchestrator/authoring commands live
 > in the extra packages, so name them in `--with-executables-from` to put them on
 > PATH. uv also manages its own Python, so a system Python 3.14 doesn't affect it.
+>
+> **Use uv ≥ 0.9.9 on Windows.** If `uv tool install` fails with `Failed to update
+> Windows PE resources: …uv-trampoline-….exe … Access is denied`, that's antivirus/
+> Defender blocking uv's trampoline `.exe` in `%TEMP%`. uv 0.9.9 stores trampoline
+> metadata in `.rcdata` instead, avoiding it — run `uv self update` and retry. If it
+> persists, add an AV exclusion for `%LOCALAPPDATA%\uv` (or point `$env:TMP`/`$env:TEMP`
+> at an unmonitored dir before installing). See astral-sh/uv#10030.
 
 > **`--include-deps` is required for the extras' CLIs.** pipx only exposes the main
 > package's own console scripts; the orchestrator/authoring commands
