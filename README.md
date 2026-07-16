@@ -52,6 +52,21 @@ specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade drive
 > externally-managed environments (Debian/Ubuntu, Homebrew). Use `pipx` (then
 > `pipx upgrade specfuse`) or a virtualenv, so `specfuse-loop` / `specfuse-lint`
 > land on PATH for the gate commands to find.
+>
+> **Windows: `pipx install` crashes with `UnicodeDecodeError` after a successful
+> install.** If the output shows `Successfully installed … specfuse-…` followed by
+> `⚠️ File exists at …\.local\bin\specfuse*.exe and does not match …` and then a
+> `UnicodeDecodeError: … can't decode byte 0x89 …` traceback, the packages
+> installed fine — the crash is pipx's post-install cleanup choking on **stale
+> `specfuse*.exe` launchers** left in `%USERPROFILE%\.local\bin` by an earlier
+> non-pipx install (e.g. a prior `pip install --user`). Clear them and reinstall:
+>
+> ```powershell
+> del "$env:USERPROFILE\.local\bin\specfuse.exe","$env:USERPROFILE\.local\bin\specfuse-loop.exe","$env:USERPROFILE\.local\bin\specfuse-lint.exe"
+> pipx install --force specfuse[all]
+> pipx ensurepath
+> specfuse --version
+> ```
 
 `specfuse init` lays down `.specfuse/` (templates, rules, docs, `verification.yml`)
 and merge-safely wires `.claude/` (including this plugin's config) — pip-native
