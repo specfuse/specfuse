@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specfuse"
-version = "0.3.5"
+version = "0.3.6"
 description = "Specfuse umbrella CLI — bridges the pip-installed driver and the Claude Code plugin (init / upgrade)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,7 +25,7 @@ classifiers = [
 # `specfuse.loop.scaffold`, which only exists in specfuse-loop 0.3.0+ (added by
 # FEAT-2026-0026). A 0.2.x driver would import-fail at `specfuse init`.
 dependencies = [
-  "specfuse-loop>=0.3.16",
+  "specfuse-loop>=0.3.17",
 ]
 
 [project.optional-dependencies]
