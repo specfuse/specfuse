@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specfuse"
-version = "0.3.9"
+version = "0.3.10"
 description = "Specfuse umbrella CLI — bridges the pip-installed driver and the Claude Code plugin (init / upgrade)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,7 +25,7 @@ classifiers = [
 # `specfuse.loop.scaffold`, which only exists in specfuse-loop 0.3.0+ (added by
 # FEAT-2026-0026). A 0.2.x driver would import-fail at `specfuse init`.
 dependencies = [
-  "specfuse-loop>=0.3.20",
+  "specfuse-loop>=0.3.21",
 ]
 
 [project.optional-dependencies]
@@ -48,7 +48,7 @@ specfuse = "specfuse.cli:main"
 # not its dependencies' — without these, `specfuse-loop`/`specfuse-lint` (from
 # the specfuse-loop dep) would be hidden and users would have to install the
 # driver separately or pass --include-deps. The targets resolve against the
-# specfuse.loop modules the pinned specfuse-loop>=0.3.20 dependency provides.
+# specfuse.loop modules the pinned specfuse-loop>=0.3.21 dependency provides.
 specfuse-loop = "specfuse.loop.loop:main"
 specfuse-lint = "specfuse.loop.lint_plan:main"
 
