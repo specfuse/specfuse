@@ -17,3 +17,6 @@ htmlcov/
 # Virtualenvs
 .venv/
 venv/
+
+# Editor / IDE
+.idea/
