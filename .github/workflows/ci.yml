@@ -1,0 +1,66 @@
+# Copyright 2026 Specfuse contributors
+# Licensed under the Apache License, Version 2.0. See LICENSE.
+#
+# CI: run this package's own test suite and lint on every pull request and on
+# main. Closes #92 — before this, the suite ran ONLY in release.yml's build-test
+# job, which fires on a `v*` tag, i.e. after the PR merged: a test-breaking PR
+# merged green and surfaced mid-publish with main already carrying the defect.
+# ruff ran nowhere at all.
+#
+# The commands mirror release.yml's build-test job minus the wheel build. The
+# difference is deliberate: release.yml tests the BUILT ARTIFACT (wheel installed
+# into a clean venv, proving what ships actually imports and runs), while this
+# tests the WORKING TREE via an editable install. Both matter; neither replaces
+# the other. Keep the pytest invocation in sync between them.
+#
+# Note `pip install -e '.[dev]'` resolves specfuse-loop from PyPI (a runtime dep,
+# pinned >=0.6.0), so tests here run against the PUBLISHED driver, not a local
+# checkout. That is correct for an umbrella package, but it does mean a PR here
+# cannot catch an unreleased driver regression.
+#
+# Make this a REQUIRED status check in branch protection for it to actually block
+# — same reasoning plugin-drift-guard.yml documents for itself. A check that
+# exists but gates nothing reads as coverage while asserting nothing.
+
+name: ci
+
+# Runs on EVERY pull request (no path filter) on purpose: a path-filtered
+# required check leaves PRs that don't touch those paths permanently "expected"
+# (BLOCKED). See the same note in plugin-drift-guard.yml.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  # Job name is the context reported to branch protection — keep it stable.
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package + dev tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      # pytest, not `unittest discover`: tests/ mixes unittest.TestCase suites
+      # with pytest-based ones (test_publish.py), and unittest discovery chokes
+      # on the pytest imports. pytest collects both.
+      #
+      # This re-runs tests/test_publish.py, which plugin-drift-guard.yml also
+      # runs standalone. That overlap is intentional — the drift-guard needs the
+      # publish mechanism proven before it trusts its own --check verdict, so its
+      # copy stays self-contained rather than depending on this job's ordering.
+      - name: Run tests
+        run: python -m pytest tests/ -q
+
+      # Ruleset is pinned in pyproject.toml [tool.ruff.lint] rather than left to
+      # ruff's implicit default, so a ruff upgrade cannot redefine what this gate
+      # asserts. See the rationale there.
+      - name: Lint
+        run: ruff check .

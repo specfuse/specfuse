@@ -29,7 +29,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["coverage>=7.0", "ruff>=0.6"]
+# pytest belongs here: tests/ mixes unittest.TestCase suites with pytest-based
+# ones (test_publish.py), so the suite cannot run without it. It was absent
+# until #92, which forced release.yml and plugin-drift-guard.yml to each
+# install pytest by hand; the extra should describe what developing this
+# package actually needs.
+dev = ["coverage>=7.0", "pytest>=7.0", "ruff>=0.6"]
 # Opt-in extra: the multi-repo initiative-coordination component. NOT a default
 # dependency (unlike specfuse-loop) — it runs at one coordination point, not in
 # every consumer. `pipx install specfuse[orchestrator]`.
@@ -59,6 +64,27 @@ Driver = "https://github.com/specfuse/loop"
 
 [tool.ruff]
 target-version = "py310"
+
+[tool.ruff.lint]
+# Pin the ruleset EXPLICITLY rather than relying on ruff's implicit default.
+# ruff 0.16 broadened that default to a large opinionated set (B/SIM/PLW/RUF/I/…);
+# a bare config inherits the change overnight, so a version bump alone can turn a
+# green gate red — specfuse/loop hit exactly that (~300 findings from an upgrade,
+# FEAT-2026-0036) and pinned for the same reason. `dev` floors ruff at >=0.6, which
+# resolves to whatever is current, so this repo was fully exposed.
+#
+# The set below is loop's classic-default pin (E4/E7/E9/F + the targeted
+# PLW1510/B/BLE001/S110/TRY004 additions) PLUS the four families that produced the
+# findings #92 catalogued: I (import sorting), SIM, EXE, and PLR0402. Those are
+# fixed in the same change, so adopting their rules costs nothing now and keeps the
+# fixes from silently regressing. The whole `PL` family is deliberately NOT taken:
+# it adds PLR0911/PLC0415 findings unrelated to this gate. Widening further stays a
+# deliberate decision, never an implicit consequence of upgrading ruff.
+select = [
+  "E4", "E7", "E9", "F",
+  "I", "SIM", "EXE", "PLR0402", "PLW1510",
+  "B", "BLE001", "S110", "TRY004",
+]
 
 [tool.setuptools.packages.find]
 # Contribute to the SHARED `specfuse` PEP 420 namespace (no specfuse/__init__.py) so

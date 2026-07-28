@@ -14,11 +14,11 @@ from __future__ import annotations
 import io
 import tempfile
 import unittest
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 
-import specfuse.cli as cli
+from specfuse import cli
 
 
 def _ok_runner(rc=0):
@@ -217,15 +217,13 @@ class TestUpgrade(unittest.TestCase):
 class TestParser(unittest.TestCase):
 
     def test_version_flag_exits_zero(self):
-        with self.assertRaises(SystemExit) as cm:
-            with redirect_stdout(io.StringIO()):
-                cli.main(["--version"])
+        with self.assertRaises(SystemExit) as cm, redirect_stdout(io.StringIO()):
+            cli.main(["--version"])
         self.assertEqual(cm.exception.code, 0)
 
     def test_no_subcommand_errors(self):
-        with self.assertRaises(SystemExit) as cm:
-            with redirect_stderr(io.StringIO()):
-                cli.main([])
+        with self.assertRaises(SystemExit) as cm, redirect_stderr(io.StringIO()):
+            cli.main([])
         self.assertNotEqual(cm.exception.code, 0)
 
     def test_init_and_upgrade_subparsers_accept_dry_run(self):
