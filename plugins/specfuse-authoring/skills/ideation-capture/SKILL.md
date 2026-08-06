@@ -32,12 +32,12 @@ not interrogate the idea.
 In scope:
 
 - Creating the index file from
-  `initiative-backlog.template.md`
+  `.specfuse/authoring/templates/initiative-backlog.template.md`
   and the `docs/product/backlog/` folder if they do not yet exist.
 - Allocating the next sequential `IDEA-NNN` and a kebab `<slug>` from the title.
 - Appending one `idea`-state index row (title, state, repos-if-known, dossier link).
 - Creating the stub dossier from
-  `initiative-idea-dossier.template.md`,
+  `.specfuse/authoring/templates/initiative-idea-dossier.template.md`,
   filling only what the human volunteered; the rest stays template placeholders.
 
 Out of scope:
