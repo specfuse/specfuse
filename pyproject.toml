@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specfuse"
-version = "0.9.3"
+version = "0.9.4"
 description = "Specfuse umbrella CLI — bridges the pip-installed driver and the Claude Code plugin (init / upgrade)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -41,10 +41,19 @@ dev = ["coverage>=7.0", "pytest>=7.0", "ruff>=0.6"]
 orchestrator = ["specfuse-orchestrator>=0.4.1"]
 # Opt-in extra: the spec-authoring kit (design/validate OpenAPI/AsyncAPI/Arazzo +
 # the specs agent). `pipx install specfuse[authoring]`.
-authoring = ["specfuse-authoring>=0.5.4"]
+#
+# The floor tracks the current authoring release rather than the oldest workable
+# one, ON PURPOSE. pipx/uv resolve an extra's version once, at install time, and
+# never re-resolve while the umbrella's own version is unchanged — so a floor
+# left at an old release strands every existing `specfuse[all]` install on
+# whatever authoring version happened to be current the day it was installed,
+# with no upgrade path short of `pipx install --force --include-deps`. Raising
+# the floor alongside an umbrella version bump is what makes `pipx upgrade
+# specfuse` actually pull the newer kit. Bump this with each authoring release.
+authoring = ["specfuse-authoring>=0.5.6"]
 # Everything: the driver (default dep) + orchestrator + authoring, so
 # `pipx install specfuse[all]` installs the whole suite in one command.
-all = ["specfuse-orchestrator>=0.4.1", "specfuse-authoring>=0.5.4"]
+all = ["specfuse-orchestrator>=0.4.1", "specfuse-authoring>=0.5.6"]
 
 [project.scripts]
 specfuse = "specfuse.cli:main"
