@@ -135,7 +135,7 @@ python3 scripts/validate-frontmatter.py --file /tmp/initiative-registry-candidat
 | `correlation_id` | The minted `INIT-YYYY-NNNN` |
 | `event_type` | `initiative_created` |
 | `source` | `specs` |
-| `source_version` | `scripts/read-agent-version.sh specs` — never eye-cached |
+| `source_version` | the literal `"n/a"` — the specs agent writes across the plane seam as a session-driven external actor, not a versioned orchestrator role |
 | `payload.initiative_title` | The human-provided title |
 | `payload.involved_repos` | The human-provided repo array |
 | `payload.autonomy_default` | The human-provided autonomy choice |
@@ -189,7 +189,7 @@ feature_graph: []
 
 ```sh
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-SOURCE_VERSION=$(scripts/read-agent-version.sh specs)
+SOURCE_VERSION="n/a"   # session-driven external actor; not a versioned orchestrator role
 cat > /tmp/event.json << EOF
 {"timestamp":"${TIMESTAMP}","correlation_id":"INIT-2026-0002","event_type":"initiative_created","source":"specs","source_version":"${SOURCE_VERSION}","payload":{"initiative_title":"Weekly roster generation","involved_repos":["acme/backend","acme/ai-service"],"autonomy_default":"review","correlation_id":"INIT-2026-0002"}}
 EOF
@@ -229,5 +229,5 @@ features after `planning`.
 3. **Drafting body content.** Placeholders only — spec content is the spec-drafting skill's concern.
 4. **Populating `feature_graph`.** It is `[]` at intake. Decomposing the initiative into dispatched features is the PM agent's job after `planning`.
 5. **Minting under the wrong root.** Initiatives are `INIT-YYYY-NNNN`. Do not mint `FEAT-` (the legacy feature root / component-local loop root) for an initiative.
-6. **Eye-caching `source_version`.** Read at emission time via `scripts/read-agent-version.sh specs`.
+6. **Treating `source_version` as a version to look up.** It is the constant `"n/a"` for this role; there is no agent-version file to read and none to eye-cache.
 7. **Appending the event before validation**, or using `cat >>` instead of the safe `printf '%s\n'` append.
