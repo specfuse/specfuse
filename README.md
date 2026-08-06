@@ -35,7 +35,24 @@ pipx install --include-deps 'specfuse[authoring]'    # + the spec-authoring kit
 pipx install --include-deps 'specfuse[all]'          # the whole suite in one command
 specfuse init <repo>          # scaffold .specfuse/ + wire .claude/ (--dry-run previews)
 specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade driver + CLI, point at /plugin update
+specfuse doctor               # check the suite's commands on PATH resolve to this install
 ```
+
+> **One install owns the suite's commands.** The extras' console scripts
+> (`specfuse-authoring`, `specfuse-orchestrator`, …) are also the console scripts
+> of their own PyPI packages, so `pipx install --include-deps 'specfuse[all]'`
+> and a standalone `pipx install specfuse-authoring` compete for the same name in
+> `~/.local/bin`. Whichever runs second loses: pipx will not overwrite a shim
+> another venv owns, and says so on stderr —
+> `File exists at ~/.local/bin/specfuse-authoring and points to … Not modifying.`
+> The command then keeps resolving to the *other* install, so upgrading the
+> package you think you are using changes nothing about what runs.
+>
+> Pick one owner. If you use the umbrella, install the extras through it and do
+> not also install them standalone; if you only want the authoring kit, install
+> that alone and skip the umbrella extras. `specfuse doctor` reports any command
+> whose shim is missing, dangling, or owned by a different venv, with the fix for
+> each; `specfuse upgrade` warns about the broken ones on its way out.
 
 Or install with **[uv](https://docs.astral.sh/uv/)** (`uv tool`) — a single standalone
 binary with the same isolated-env-on-PATH model as pipx, and the **recommended path
