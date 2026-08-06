@@ -126,7 +126,11 @@ Where the loop tracks state in files rather than the registry:
   `blocked_human`, `abandoned`.
 - **Gate status:** `open`, `awaiting_review`, `passed`.
 - **Feature (roadmap) status:** `planned`, `active`, `done`, `abandoned`,
-  `deferred` (parked pending an external decision; resumable, unlike `abandoned`).
+  `blocked`, `deferred`. The last two are parked-but-resumable, unlike
+  `abandoned`: `blocked` names and links an unmet dependency (an ADR awaiting
+  approval, or an upstream `FEAT-YYYY-NNNN`) and only `planned`/`active` may
+  enter it; `deferred` is a voluntary park with no named blocker. The driver
+  skips both.
 
 ---
 
