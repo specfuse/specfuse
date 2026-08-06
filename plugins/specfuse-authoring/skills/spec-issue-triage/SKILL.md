@@ -161,7 +161,7 @@ Construct the event:
 | `correlation_id` | `FEAT-YYYY-NNNN` (feature-level, extracted from the triggering task's correlation ID) |
 | `event_type` | `spec_issue_resolved` |
 | `source` | `specs` |
-| `source_version` | Output of `scripts/read-agent-version.sh specs` |
+| `source_version` | the literal `"n/a"` — the specs agent writes across the plane seam as a session-driven external actor, not a versioned orchestrator role |
 | `payload.original_issue_correlation_id` | The task-level correlation ID from the inbox file's `## Triggering task` (e.g. `FEAT-2026-0042/T09`) |
 | `payload.affected_files` | Array of spec file paths edited (relative to product specs repo root) |
 | `payload.resolution_summary` | One-sentence description of what was fixed and why |
@@ -227,7 +227,7 @@ Construct the event:
 | `correlation_id` | `FEAT-YYYY-NNNN` (feature-level) |
 | `event_type` | `spec_issue_routed` |
 | `source` | `specs` |
-| `source_version` | Output of `scripts/read-agent-version.sh specs` |
+| `source_version` | the literal `"n/a"` — the specs agent writes across the plane seam as a session-driven external actor, not a versioned orchestrator role |
 | `payload.original_issue_correlation_id` | The task-level correlation ID from the inbox file's `## Triggering task` |
 | `payload.target_project` | The `owner/repo` of the generator project |
 | `payload.filed_issue_reference` | The GitHub issue reference returned by `gh issue create` (e.g. `acme/specfuse-generator#42`) |
@@ -499,7 +499,7 @@ Emitted when the skill routes a spec issue to the generator project by filing a 
 | `target_project` | `string` | `owner/repo` of the generator project |
 | `filed_issue_reference` | `string` | GitHub issue reference (`owner/repo#N`) |
 
-Both event types follow the standard event envelope schema at `event.schema.json`. The `source` is always `specs`; the `source_version` is read at emission time via `scripts/read-agent-version.sh specs`.
+Both event types follow the standard event envelope schema at `event.schema.json`. The `source` is always `specs`; the `source_version` is always the literal `"n/a"` — this role is a session-driven external actor across the plane seam, so there is no agent version to read.
 
 ## Artifacts produced
 

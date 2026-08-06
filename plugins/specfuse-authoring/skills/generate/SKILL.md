@@ -14,7 +14,7 @@ Generate frontend and backend code artifacts from the API specifications.
 
 ## Prerequisites — verify before running
 
-1. `specfuse-authoring` is on PATH (`pipx install specfuse-authoring`). The generator itself is not a file in the project — the CLI resolves and checksum-verifies the version pinned in `generator.lock` on demand.
+1. `specfuse-authoring` is on PATH (`pipx install specfuse-authoring`, or `pipx install --force --include-deps 'specfuse[all]'` if you run the umbrella CLI — install it one way, not both, or the command resolves to whichever install claimed the shim first). The generator itself is not a file in the project — the CLI resolves and checksum-verifies the version pinned in `generator.lock` on demand.
 2. The project config file (typically `<project>-project.json`) exists in the project root
 3. Specifications are valid — if not recently validated, run `/validate` first
 
