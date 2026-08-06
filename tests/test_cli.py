@@ -214,6 +214,163 @@ class TestUpgrade(unittest.TestCase):
             self.assertIn("pipx upgrade specfuse", err.getvalue())
 
 
+class TestDiagnoseShims(unittest.TestCase):
+    """`diagnose_shims` is the collision detector: two supported install paths
+    (`pipx install --include-deps 'specfuse[all]'` and a standalone
+    `pipx install specfuse-authoring`) compete for one name in ~/.local/bin, and
+    the loser's package upgrades without changing what the command runs.
+
+    The venv bin dir and shim dir are injected, so these build the four states on
+    a real tmpdir instead of touching the caller's ~/.local/bin.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        root = Path(self._tmp.name)
+        self.venv_bin = root / "venvs" / "specfuse" / "bin"
+        self.other_bin = root / "venvs" / "specfuse-authoring" / "bin"
+        self.shims = root / "bin"
+        for d in (self.venv_bin, self.other_bin, self.shims):
+            d.mkdir(parents=True)
+        # Attribute every script to a real distribution name; the fix strings
+        # quote it back at the user.
+        self._orig_scripts = cli._console_scripts
+        cli._console_scripts = lambda: {"specfuse-authoring": "specfuse-authoring"}
+
+    def tearDown(self):
+        cli._console_scripts = self._orig_scripts
+        self._tmp.cleanup()
+
+    def _run(self):
+        return cli.diagnose_shims(shim_dir=self.shims, venv_bin=self.venv_bin)
+
+    def test_healthy_shim_is_not_reported(self):
+        (self.venv_bin / "specfuse-authoring").write_text("#!/bin/sh\n")
+        (self.shims / "specfuse-authoring").symlink_to(
+            self.venv_bin / "specfuse-authoring")
+        self.assertEqual(self._run(), [])
+
+    def test_script_not_provided_by_this_venv_is_ignored(self):
+        """A console script the venv does not actually ship (extra not installed)
+        is another package's business, not a finding."""
+        (self.shims / "specfuse-authoring").symlink_to(
+            self.other_bin / "specfuse-authoring")
+        self.assertEqual(self._run(), [])
+
+    def test_stale_dangling_shim_is_reported_with_rm(self):
+        (self.venv_bin / "specfuse-authoring").write_text("#!/bin/sh\n")
+        (self.shims / "specfuse-authoring").symlink_to(
+            self.other_bin / "gone")  # target never created
+        problems = self._run()
+        self.assertEqual(len(problems), 1)
+        command, problem, fix, kind = problems[0]
+        self.assertEqual(command, "specfuse-authoring")
+        self.assertIn("stale shim", problem)
+        self.assertIn("rm ", fix)
+        self.assertEqual(kind, "stale")
+
+    def test_shim_owned_by_another_install_is_reported(self):
+        (self.venv_bin / "specfuse-authoring").write_text("#!/bin/sh\n")
+        (self.other_bin / "specfuse-authoring").write_text("#!/bin/sh\n")
+        (self.shims / "specfuse-authoring").symlink_to(
+            self.other_bin / "specfuse-authoring")
+        problems = self._run()
+        self.assertEqual(len(problems), 1)
+        self.assertIn("another install", problems[0][1])
+        self.assertEqual(problems[0][3], "foreign")
+
+    def test_installed_but_unlinked_script_is_reported(self):
+        """The --include-deps omission: the extra is installed, its command is
+        not on PATH at all."""
+        (self.venv_bin / "specfuse-authoring").write_text("#!/bin/sh\n")
+        problems = self._run()
+        self.assertEqual(len(problems), 1)
+        self.assertIn("not on PATH", problems[0][1])
+        self.assertIn("--include-deps", problems[0][2])
+        self.assertEqual(problems[0][3], "unlinked")
+
+
+class TestUpgradeShimWarning(unittest.TestCase):
+    """The upgrade-time advisory: broken shims warn, an unlinked optional command
+    stays quiet, and neither ever fails the upgrade."""
+
+    def _warn(self, problems):
+        orig_managed, orig_diag = cli._managed_by_tool, cli.diagnose_shims
+        cli._managed_by_tool = lambda: True
+        cli.diagnose_shims = lambda: problems
+        err = io.StringIO()
+        try:
+            with redirect_stderr(err):
+                cli._warn_about_shims()
+        finally:
+            cli._managed_by_tool, cli.diagnose_shims = orig_managed, orig_diag
+        return err.getvalue()
+
+    def test_foreign_shim_warns(self):
+        out = self._warn([("specfuse-authoring", "shim points at another install",
+                           "pick ONE owner", "foreign")])
+        self.assertIn("specfuse-authoring", out)
+
+    def test_unlinked_command_is_silent(self):
+        out = self._warn([("specfuse-stats", "not on PATH", "--include-deps",
+                           "unlinked")])
+        self.assertEqual(out, "")
+
+    def test_plain_venv_skips_the_check_entirely(self):
+        orig_managed, orig_diag = cli._managed_by_tool, cli.diagnose_shims
+        called = []
+        cli._managed_by_tool = lambda: False
+        cli.diagnose_shims = lambda: called.append(1) or []
+        try:
+            cli._warn_about_shims()
+        finally:
+            cli._managed_by_tool, cli.diagnose_shims = orig_managed, orig_diag
+        self.assertEqual(called, [], "no shims exist to check outside pipx/uv")
+
+
+class TestDoctor(unittest.TestCase):
+
+    def test_non_tool_install_reports_nothing_to_check(self):
+        orig = cli._managed_by_tool
+        cli._managed_by_tool = lambda: False
+        out = io.StringIO()
+        try:
+            with redirect_stdout(out):
+                rc = cli.cmd_doctor(_args())
+        finally:
+            cli._managed_by_tool = orig
+        self.assertEqual(rc, 0)
+        self.assertIn("no shims to check", out.getvalue())
+
+    def test_problems_exit_nonzero_and_name_the_command(self):
+        orig_managed, orig_diag = cli._managed_by_tool, cli.diagnose_shims
+        cli._managed_by_tool = lambda: True
+        cli.diagnose_shims = lambda: [
+            ("specfuse-authoring", "stale shim: x", "rm x", "stale")]
+        err = io.StringIO()
+        try:
+            with redirect_stderr(err):
+                rc = cli.cmd_doctor(_args())
+        finally:
+            cli._managed_by_tool, cli.diagnose_shims = orig_managed, orig_diag
+        self.assertEqual(rc, 1)
+        self.assertIn("specfuse-authoring", err.getvalue())
+        self.assertIn("rm x", err.getvalue())
+
+    def test_clean_install_exits_zero(self):
+        orig_managed, orig_diag = cli._managed_by_tool, cli.diagnose_shims
+        cli._managed_by_tool = lambda: True
+        cli.diagnose_shims = lambda: []
+        out = io.StringIO()
+        try:
+            with redirect_stdout(out):
+                rc = cli.cmd_doctor(_args())
+        finally:
+            cli._managed_by_tool, cli.diagnose_shims = orig_managed, orig_diag
+        self.assertEqual(rc, 0)
+        self.assertIn("resolve to this install", out.getvalue())
+
+
 class TestParser(unittest.TestCase):
 
     def test_version_flag_exits_zero(self):

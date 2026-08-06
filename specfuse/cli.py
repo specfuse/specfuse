@@ -14,16 +14,20 @@ Subcommands:
                          pip package (via specfuse.loop.scaffold.init)
   specfuse upgrade DIR   overlay the versioned scaffold (never downgrades), then
                          pip-upgrade the driver + CLI and point at /plugin update
+  specfuse doctor        report suite commands whose PATH shim is missing, stale,
+                         or owned by another install
 
-Both accept --dry-run (preview, writes nothing). The scaffolding itself lives in
-the driver package (`specfuse.loop.scaffold`, FEAT-2026-0026); this CLI is the
-thin user-facing bridge over it.
+init/upgrade accept --dry-run (preview, writes nothing). The scaffolding itself
+lives in the driver package (`specfuse.loop.scaffold`, FEAT-2026-0026); this CLI
+is the thin user-facing bridge over it.
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import importlib.util
+import os
 import shutil
 import subprocess
 import sys
@@ -97,6 +101,145 @@ def _pip_upgrade_or_advise(runner=None) -> int:
     else:
         print("specfuse: pip packages upgraded (specfuse-loop, specfuse).")
     return rc
+
+
+def _shim_dir() -> Path:
+    """The directory pipx/uv expose console scripts in. Both default to
+    ~/.local/bin and both let the user move it, so honor the env vars first."""
+    for var in ("PIPX_BIN_DIR", "UV_TOOL_BIN_DIR"):
+        override = os.environ.get(var)
+        if override:
+            return Path(override).expanduser()
+    return Path.home() / ".local" / "bin"
+
+
+def _console_scripts() -> dict[str, str]:
+    """Map console-script name -> distribution name for everything installed in
+    THIS environment. Read off `distributions()` rather than
+    `entry_points(group=...)` because `EntryPoint.dist` — the only way to
+    attribute a script back to its package — is not available on 3.10/3.11, and
+    requires-python allows those."""
+    scripts: dict[str, str] = {}
+    for dist in importlib.metadata.distributions():
+        name = dist.metadata["Name"]
+        if name is None:
+            continue
+        for ep in dist.entry_points:
+            if ep.group == "console_scripts":
+                scripts[ep.name] = name
+    return scripts
+
+
+def diagnose_shims(*, shim_dir: Path | None = None,
+                   venv_bin: Path | None = None) -> list[tuple[str, str, str, str]]:
+    """Find suite commands whose PATH shim does not lead back to this venv.
+
+    The failure this catches: `specfuse-authoring` (and the orchestrator's
+    commands) are console scripts of OPTIONAL extras, so two supported install
+    paths compete for one name in ~/.local/bin — `pipx install --include-deps
+    'specfuse[all]'`, which links them out of the umbrella venv, and a
+    standalone `pipx install specfuse-authoring`, which links them out of its
+    own. Whichever runs second loses: pipx refuses to overwrite a shim another
+    venv owns ("File exists at ... and points to ... Not modifying") and warns
+    on stderr, so the command silently keeps resolving to the OTHER install and
+    upgrading one package changes nothing about what runs. A shim can also be
+    left dangling when the venv that owned it is reinstalled without the extra.
+
+    Returns (command, problem, fix, kind) tuples, kind one of "unlinked",
+    "stale", "foreign"; empty means every script this venv provides resolves to
+    this venv. Non-symlink shims are skipped: pipx uses symlinks on POSIX, and a
+    Windows launcher .exe cannot be attributed by reading the filesystem.
+    """
+    shim_dir = shim_dir or _shim_dir()
+    # Resolve: the comparison below is against shim.resolve(), and on macOS the
+    # two sides disagree over /tmp vs /private/tmp (and over any symlinked venv
+    # path) unless both are fully resolved — which would report every healthy
+    # shim as foreign.
+    venv_bin = (venv_bin or Path(sys.executable).parent).resolve()
+    problems: list[tuple[str, str, str, str]] = []
+    for command, dist in sorted(_console_scripts().items()):
+        # Only scripts this venv actually ships: a dependency's entry point that
+        # was never linked (no --include-deps) is a real finding, but a script
+        # belonging to some unrelated package is not ours to police.
+        if not (venv_bin / command).exists():
+            continue
+        shim = shim_dir / command
+        if not shim.is_symlink() and not shim.exists():
+            problems.append((
+                command,
+                f"provided by {dist} in this venv but not on PATH ({shim_dir})",
+                f"pipx install --force --include-deps 'specfuse[all]'  "
+                f"# or: uv tool install --with-executables-from {dist} 'specfuse[all]'",
+                "unlinked",
+            ))
+            continue
+        if not shim.is_symlink():
+            continue
+        if not shim.exists():
+            problems.append((
+                command,
+                f"stale shim: {shim} -> {os.readlink(shim)} (target is gone)",
+                f"rm {shim} && pipx install --force --include-deps 'specfuse[all]'",
+                "stale",
+            ))
+            continue
+        owner = shim.resolve().parent
+        if owner != venv_bin:
+            problems.append((
+                command,
+                f"shim points at another install: {shim} -> {shim.resolve()}",
+                f"pick ONE owner — keep that install, or `pipx uninstall {dist}` "
+                f"and reinstall the umbrella with --include-deps",
+                "foreign",
+            ))
+    return problems
+
+
+def _managed_by_tool() -> bool:
+    """True when a tool installer (pipx / uv tool) owns this environment, i.e.
+    when a PATH shim is expected to exist at all. A plain venv or a system pip
+    install puts its scripts on PATH directly, so the shim check does not
+    apply."""
+    where = Path(sys.executable).resolve().as_posix()
+    return "/pipx/venvs/" in where or "/uv/tools/" in where
+
+
+def _warn_about_shims() -> None:
+    """Advisory half of `specfuse doctor`, run at the end of an upgrade: report
+    shim problems without failing the command that found them.
+
+    Only the two BROKEN kinds. "unlinked" is left to `specfuse doctor`: an
+    install without --include-deps legitimately leaves the driver's optional
+    commands (specfuse-monitor, specfuse-stats, …) off PATH, so warning about it
+    on every upgrade is noise, not a finding. A stale or foreign shim is always
+    a bug — the command resolves somewhere other than what was just upgraded.
+    """
+    if not _managed_by_tool():
+        return
+    for command, problem, fix, kind in diagnose_shims():
+        if kind == "unlinked":
+            continue
+        print(f"specfuse: warning: `{command}` — {problem}\n  fix: {fix}",
+              file=sys.stderr)
+
+
+def cmd_doctor(args: argparse.Namespace, *, runner=None) -> int:
+    """Report suite commands whose PATH shim is missing, stale, or owned by a
+    different install. Exits 1 when anything is wrong so CI can gate on it."""
+    if not _managed_by_tool():
+        print("specfuse: not a pipx/uv-managed install — this environment puts "
+              "its scripts on PATH directly, so there are no shims to check.")
+        return 0
+    problems = diagnose_shims()
+    if not problems:
+        print(f"specfuse: all suite commands resolve to this install "
+              f"({Path(sys.executable).resolve().parent}).")
+        return 0
+    print(f"specfuse: {len(problems)} command(s) do not resolve to this install:",
+          file=sys.stderr)
+    for command, problem, fix, _kind in problems:
+        print(f"  {command}: {problem}\n    fix: {fix}", file=sys.stderr)
+    return 1
 
 
 def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
@@ -197,6 +340,10 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
     rc = _pip_upgrade_or_advise(runner)
     if rc != 0:
         return rc
+    # After the upgrade, not before: an upgrade is exactly when a shim owned by
+    # a competing install turns into a silent wrong-version bug — the package is
+    # updated, the command on PATH still runs the other venv's copy.
+    _warn_about_shims()
     print(PLUGIN_UPDATE_HINT)
     return 0
 
@@ -219,6 +366,9 @@ def build_parser() -> argparse.ArgumentParser:
     up.add_argument("--ci-check", default=None,
                     help="path to a CI check script to delegate verification.yml to")
     up.set_defaults(func=cmd_upgrade)
+
+    doc = sub.add_parser("doctor", help="check that suite commands on PATH resolve here")
+    doc.set_defaults(func=cmd_doctor)
 
     return ap
 
