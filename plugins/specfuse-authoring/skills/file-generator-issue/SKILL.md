@@ -139,20 +139,19 @@ Body rules:
 
 Capture the issue number from the JSON response (`.number`) for Step 3.
 
-## Step 3 — Start background monitor
+## Step 3 — Report the filed issue
 
-After filing (or finding a duplicate), start polling for resolution:
+After filing (or finding a duplicate), tell the user the issue number and
+where it was filed, and how to check on it:
 
 ```bash
-bash .claude/scripts/monitor-generator-issue.sh <issue-number> ${GENERATOR_REPO} 300
+gh issue view <issue-number> --repo ${GENERATOR_REPO}
 ```
 
-Use the Bash tool with `run_in_background: true`. The monitor checks
-every 5 minutes (300 seconds). When the generator agent adds the
-`status:resolved` label, the monitor prints a notification and exits.
-
-Tell the user: "Background monitor started for issue #<N>. I'll be
-notified automatically when the generator agent resolves it."
+Resolution is signalled by the generator side adding the `status:resolved`
+label. The kit ships no polling helper — if the user wants to be notified
+rather than checking manually, that is theirs to wire up (a scheduled
+`gh issue view` is usually enough).
 
 ## Step 4 — On resolution notification
 

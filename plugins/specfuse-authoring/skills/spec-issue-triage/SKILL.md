@@ -25,7 +25,7 @@ gh issue list --label specfuse:spec-issue --state open   # this repo's origin
 
 (A deploying project may wrap this in a small helper script of its own; the skill only needs the list of open `specfuse:spec-issue`-labelled issues.)
 
-The issue **body** follows the `spec-issue.md` template: `## Observation`, `## Location`, `## Triggering task`, `## Suggested resolution`. It was filed by `scripts/raise-spec-issue.py` (orchestrator side) when a downstream actor hit a spec-level problem it could not resolve inside its own task. The `initiative:INIT-…` label (when present) threads it to its initiative.
+The issue **body** follows the `spec-issue.md` template: `## Observation`, `## Location`, `## Triggering task`, `## Suggested resolution`. It is filed from the orchestrator side when a downstream actor hits a spec-level problem it cannot resolve inside its own task; the kit does not ship the filing tool. The `initiative:INIT-…` label (when present) threads it to its initiative.
 
 **This is the specs agent's monitor-driven skill** rather than the session-driven pattern of the drafting skills: it picks an open `specfuse:spec-issue` issue and triages it. The human does not need to be in an active session for triage to begin — although the escalation path (case d) requires human input before the issue can be resolved.
 
