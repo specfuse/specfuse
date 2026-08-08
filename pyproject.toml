@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specfuse"
-version = "0.9.4"
-description = "Specfuse umbrella CLI — bridges the pip-installed driver and the Claude Code plugin (init / upgrade)."
+version = "0.10.0"
+description = "Specfuse — the whole script suite (driver, authoring kit, orchestrator) in one install, plus the init/upgrade bridge to the Claude Code plugin."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -20,14 +20,37 @@ classifiers = [
   "Intended Audience :: Developers",
   "Topic :: Software Development",
 ]
-# The umbrella depends on the driver. `pip install specfuse` pulls specfuse-loop.
-# Pinned >=0.3.0: the CLI's init/upgrade rewire (FEAT-2026-0028 gate 2) calls
-# `specfuse.loop.scaffold`, which only exists in specfuse-loop 0.3.0+ (added by
-# FEAT-2026-0026). A 0.2.x driver would import-fail at `specfuse init`.
+# The umbrella IS the suite: one `pipx install specfuse` / `uv tool install
+# specfuse` installs and upgrades every script component. All three are HARD
+# dependencies, deliberately — they used to be optional extras
+# (`specfuse[authoring]`, `[orchestrator]`, `[all]`) and that model breaks against
+# the pipx/uv tool model three ways (see docs/plan-bundle-suite-distribution.md):
+#
+#   1. Tool installers link only the MAIN package's entry points, so an extra's
+#      commands need --include-deps / --with-executables-from to reach PATH —
+#      the obvious install was silently incomplete.
+#   2. Extras are resolved once at install time and never re-resolved, so
+#      `pipx upgrade specfuse` could not pull a newer component. That is what
+#      forced the old "bump this floor with every component release" ritual.
+#   3. An extra's console scripts share names with the standalone package's, so
+#      two supported install paths fought over one name in ~/.local/bin and the
+#      loser's upgrades silently changed nothing about what ran.
+#
+# Hard deps are re-resolved on every upgrade, so the floors below are MINIMUMS
+# (the oldest version the umbrella's own code can call) — not upgrade levers.
+# No conflict risk: specfuse-loop and specfuse-authoring have no third-party
+# runtime deps, and specfuse-orchestrator adds only jsonschema + pyyaml.
+#
+# specfuse-loop>=0.9.3: the CLI's init/upgrade calls `specfuse.loop.scaffold`
+# (added 0.3.0) and re-exports the monitor/stats mains that exist from 0.9.3.
 dependencies = [
   "specfuse-loop>=0.9.3",
+  "specfuse-orchestrator>=0.4.1",
+  "specfuse-authoring>=0.5.6",
 ]
 
+# `dev` is the ONLY extra left. It describes what developing this package needs,
+# not what using the suite needs — the suite is the hard-dependency set above.
 [project.optional-dependencies]
 # pytest belongs here: tests/ mixes unittest.TestCase suites with pytest-based
 # ones (test_publish.py), so the suite cannot run without it. It was absent
@@ -35,36 +58,35 @@ dependencies = [
 # install pytest by hand; the extra should describe what developing this
 # package actually needs.
 dev = ["coverage>=7.0", "pytest>=7.0", "ruff>=0.6"]
-# Opt-in extra: the multi-repo initiative-coordination component. NOT a default
-# dependency (unlike specfuse-loop) — it runs at one coordination point, not in
-# every consumer. `pipx install specfuse[orchestrator]`.
-orchestrator = ["specfuse-orchestrator>=0.4.1"]
-# Opt-in extra: the spec-authoring kit (design/validate OpenAPI/AsyncAPI/Arazzo +
-# the specs agent). `pipx install specfuse[authoring]`.
-#
-# The floor tracks the current authoring release rather than the oldest workable
-# one, ON PURPOSE. pipx/uv resolve an extra's version once, at install time, and
-# never re-resolve while the umbrella's own version is unchanged — so a floor
-# left at an old release strands every existing `specfuse[all]` install on
-# whatever authoring version happened to be current the day it was installed,
-# with no upgrade path short of `pipx install --force --include-deps`. Raising
-# the floor alongside an umbrella version bump is what makes `pipx upgrade
-# specfuse` actually pull the newer kit. Bump this with each authoring release.
-authoring = ["specfuse-authoring>=0.5.6"]
-# Everything: the driver (default dep) + orchestrator + authoring, so
-# `pipx install specfuse[all]` installs the whole suite in one command.
-all = ["specfuse-orchestrator>=0.4.1", "specfuse-authoring>=0.5.6"]
 
+# `specfuse` is the suite's ONE command. Everything the components used to expose
+# as its own flat `specfuse-*` script is now `specfuse <subcommand>` (run, lint,
+# monitor, stats, authoring, pm, …) — see DELEGATED_COMMANDS in specfuse/cli.py.
+# One name on PATH is what makes a shim collision structurally impossible: the
+# flat names are also the standalone packages' console scripts, so two installs
+# could fight over them and the loser's upgrades silently changed nothing about
+# what ran.
+#
+# The flat names below are DEPRECATED ALIASES, kept for two releases because the
+# scaffold's hooks, verification.yml and skills invoke them by string. Every one
+# resolves to `specfuse.cli:alias_main`, which recovers the invoked name from
+# sys.argv[0], prints the replacement once, and delegates — so this table stays
+# one line per command and cannot drift from DELEGATED_COMMANDS. They are removed
+# in 1.0.0. See docs/plan-bundle-suite-distribution.md.
 [project.scripts]
 specfuse = "specfuse.cli:main"
-# Re-export the driver's console scripts so `pipx install specfuse` exposes all
-# three on PATH. pipx only surfaces the installed package's OWN entry points,
-# not its dependencies' — without these, `specfuse-loop`/`specfuse-lint` (from
-# the specfuse-loop dep) would be hidden and users would have to install the
-# driver separately or pass --include-deps. The targets resolve against the
-# specfuse.loop modules the pinned specfuse-loop>=0.9.3 dependency provides.
-specfuse-loop = "specfuse.loop.loop:main"
-specfuse-lint = "specfuse.loop.lint_plan:main"
+# Deprecated aliases — use `specfuse <subcommand>`.
+specfuse-loop = "specfuse.cli:alias_main"
+specfuse-lint = "specfuse.cli:alias_main"
+specfuse-monitor = "specfuse.cli:alias_main"
+specfuse-monitor-lint = "specfuse.cli:alias_main"
+specfuse-stats = "specfuse.cli:alias_main"
+specfuse-authoring = "specfuse.cli:alias_main"
+specfuse-orchestrator = "specfuse.cli:alias_main"
+specfuse-poller = "specfuse.cli:alias_main"
+specfuse-runner = "specfuse.cli:alias_main"
+specfuse-validate-event = "specfuse.cli:alias_main"
+specfuse-validate-frontmatter = "specfuse.cli:alias_main"
 
 [project.urls]
 Homepage = "https://github.com/specfuse/specfuse"

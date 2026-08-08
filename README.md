@@ -1,140 +1,105 @@
-# Specfuse — Claude Code plugin marketplace
+# Specfuse
 
-This repository is the [Claude Code plugin
+Two things live here: the **`specfuse` pip package** — one install that owns the
+whole script suite — and the [Claude Code plugin
 marketplace](https://code.claude.com/docs/en/plugin-marketplaces) for the
-**Specfuse gate-cycle methodology**. It is the shared distribution home so the
-loop today — and the orchestrator and future products later — install their Claude
-assets from one place.
+**Specfuse gate-cycle methodology**.
+
+The split is deliberate. The *scripts* are one install because choosing between
+them is not a decision anyone wants to make; the *plugins* stay separate because
+which Claude assets a repository enables is exactly the decision it should make.
 
 ## Install
+
+```
+uv tool install specfuse      # or: pipx install specfuse
+cd <your repo> && specfuse init
+```
+
+That's the whole suite — driver, spec-authoring kit, orchestrator — behind one
+command. No extras, no `--include-deps`, no bracket quoting. Upgrade with:
+
+```
+specfuse upgrade              # runs your installer for you
+```
+
+Then, in Claude Code, install the plugins the repo needs:
 
 ```
 /plugin marketplace add specfuse/specfuse
 /plugin install specfuse@specfuse
 ```
 
-That installs the **`specfuse`** plugin: the methodology's interactive skills,
-namespaced under `/specfuse:` (e.g. `/specfuse:pick-feature`,
-`/specfuse:draft-feature`, `/specfuse:arm-gate`). Update with `/plugin update
-specfuse@specfuse`; reload after changes with `/reload-plugins`.
+`specfuse init` already wires the marketplace and the `specfuse` plugin into the
+repo's `.claude/settings.json`, so that second command is usually all that's left.
+Add `--plugins authoring,orchestrator` to enable those too.
 
-The skills drive the **specfuse-loop** driver — install it with the umbrella
-package below (`pip install specfuse` pulls it), or on its own with `pip install
-specfuse-loop`. See [specfuse/loop](https://github.com/specfuse/loop) for the
-methodology, the driver, and getting-started docs.
+Hitting a platform bug, or migrating off the retired `specfuse[all]` extras? See
+[`docs/troubleshooting.md`](docs/troubleshooting.md), and run `specfuse doctor`.
 
-## The `specfuse` umbrella CLI
+## The `specfuse` command
 
-This repo also ships the **`specfuse`** pip package — the umbrella CLI that bridges
-the pip-installed driver and this plugin:
+One command, one name on PATH.
 
 ```
-pipx install specfuse                                # driver only; gives specfuse / specfuse-loop / specfuse-lint
-pipx install --include-deps 'specfuse[orchestrator]' # + the multi-repo orchestrator
-pipx install --include-deps 'specfuse[authoring]'    # + the spec-authoring kit
-pipx install --include-deps 'specfuse[all]'          # the whole suite in one command
-specfuse init <repo>          # scaffold .specfuse/ + wire .claude/ (--dry-run previews)
-specfuse upgrade <repo>       # overlay a newer scaffold, then pip-upgrade driver + CLI, point at /plugin update
-specfuse doctor               # check the suite's commands on PATH resolve to this install
+specfuse init [DIR]           # scaffold .specfuse/ + wire .claude/ — or upgrade what's there
+specfuse upgrade [DIR]        # the same thing, named for the other direction
+specfuse doctor [--fix]       # check every suite command resolves here; --fix clears dead shims
+specfuse --version            # the umbrella version + every component's resolved version
 ```
 
-> **One install owns the suite's commands.** The extras' console scripts
-> (`specfuse-authoring`, `specfuse-orchestrator`, …) are also the console scripts
-> of their own PyPI packages, so `pipx install --include-deps 'specfuse[all]'`
-> and a standalone `pipx install specfuse-authoring` compete for the same name in
-> `~/.local/bin`. Whichever runs second loses: pipx will not overwrite a shim
-> another venv owns, and says so on stderr —
-> `File exists at ~/.local/bin/specfuse-authoring and points to … Not modifying.`
-> The command then keeps resolving to the *other* install, so upgrading the
-> package you think you are using changes nothing about what runs.
->
-> Pick one owner. If you use the umbrella, install the extras through it and do
-> not also install them standalone; if you only want the authoring kit, install
-> that alone and skip the umbrella extras. `specfuse doctor` reports any command
-> whose shim is missing, dangling, or owned by a different venv, with the fix for
-> each; `specfuse upgrade` warns about the broken ones on its way out.
+`init` and `upgrade` are one idempotent operation under two names — neither is
+ever the wrong one to run — and `DIR` defaults to the current directory. Both take
+`--dry-run` (writes nothing), `--plugins`, and `--no-self-upgrade`.
 
-Or install with **[uv](https://docs.astral.sh/uv/)** (`uv tool`) — a single standalone
-binary with the same isolated-env-on-PATH model as pipx, and the **recommended path
-on Windows** (it sidesteps the pipx/Python-3.14 bug noted below):
+The component tools are subcommands:
 
-```
-uv tool install specfuse                             # core: specfuse / specfuse-loop / specfuse-lint
-uv tool install --with-executables-from specfuse-orchestrator,specfuse-authoring 'specfuse[all]'   # whole suite
-uv tool upgrade specfuse                             # upgrade (re-resolves, like pipx upgrade)
-```
+| Subcommand | What it does | Component |
+|---|---|---|
+| `specfuse run` | run the gate-cycle driver | `specfuse-loop` |
+| `specfuse lint` | lint a feature plan | `specfuse-loop` |
+| `specfuse monitor`, `monitor-lint` | the monitoring CLI and its linter | `specfuse-loop` |
+| `specfuse stats` | event statistics for a repo's loop | `specfuse-loop` |
+| `specfuse authoring` | design / validate / bundle specs | `specfuse-authoring` |
+| `specfuse pm` | multi-repo initiative coordination | `specfuse-orchestrator` |
+| `specfuse poller`, `runner` | the orchestrator's poller and agent runner | `specfuse-orchestrator` |
+| `specfuse validate-event`, `validate-frontmatter` | orchestrator validators | `specfuse-orchestrator` |
 
-> **`--with-executables-from` is uv's `--include-deps`.** `uv tool install specfuse`
-> exposes only the umbrella's own scripts; the orchestrator/authoring commands live
-> in the extra packages, so name them in `--with-executables-from` to put them on
-> PATH. uv also manages its own Python, so a system Python 3.14 doesn't affect it.
->
-> **Use uv ≥ 0.9.9 on Windows.** If `uv tool install` fails with `Failed to update
-> Windows PE resources: …uv-trampoline-….exe … Access is denied`, that's antivirus/
-> Defender blocking uv's trampoline `.exe` in `%TEMP%`. uv 0.9.9 stores trampoline
-> metadata in `.rcdata` instead, avoiding it — run `uv self update` and retry. If it
-> persists, add an AV exclusion for `%LOCALAPPDATA%\uv` (or point `$env:TMP`/`$env:TEMP`
-> at an unmonitored dir before installing). See astral-sh/uv#10030.
-
-> **`--include-deps` is required for the extras' CLIs.** pipx only exposes the main
-> package's own console scripts; the orchestrator/authoring commands
-> (`specfuse-orchestrator`, `specfuse-poller`, `specfuse-authoring`, …) live in the
-> extra packages, so `--include-deps` is what surfaces them on PATH. Without it the
-> extra is *installed* but its commands aren't linked.
->
-> **Quote the brackets** — zsh globs them (`'specfuse[all]'`). And extras are only
-> re-resolved on a *fresh* install — to add one to an existing install use
-> `pipx install --force --include-deps 'specfuse[all]'`; `pipx upgrade` alone won't
-> pull a newly-added extra.
-
-> A bare `pip install` into a system Python is blocked on PEP-668
-> externally-managed environments (Debian/Ubuntu, Homebrew). Use `pipx` (then
-> `pipx upgrade specfuse`) or a virtualenv, so `specfuse-loop` / `specfuse-lint`
-> land on PATH for the gate commands to find.
->
-> **Windows + Python 3.14: `pipx install` crashes with `UnicodeDecodeError`.**
-> If the output shows `Successfully installed … specfuse-…` and then a
-> `UnicodeDecodeError: … can't decode byte 0x89 …` traceback ending in pipx's
-> `_copy_launcher_targets_venv → os.fsdecode(...)`, the packages installed fine —
-> this is an **upstream pipx bug on Python 3.14/Windows**, not a specfuse defect.
-> pipx copies the console-script `.exe` launchers into `%USERPROFILE%\.local\bin`
-> and its post-install cleanup then mis-reads them. `--force` re-copies and
-> re-scans the same launchers, so it hits the identical crash; deleting the shims
-> doesn't help either (they're recreated and re-trigger it). Same 3.14/Windows
-> class as [pypa/pipx#1723](https://github.com/pypa/pipx/issues/1723).
->
-> **Use uv instead** (recommended) — uv's `tool` model is pipx-equivalent (isolated
-> env, shims on PATH, one-line install/upgrade) but uses its own launcher machinery,
-> so it doesn't hit this bug:
->
-> ```powershell
-> powershell -c "irm https://astral.sh/uv/install.ps1 | iex"   # one-time: install uv
-> uv tool install specfuse                                     # core CLIs
-> uv tool install --with-executables-from specfuse-orchestrator,specfuse-authoring 'specfuse[all]'   # whole suite
-> specfuse --version
-> uv tool upgrade specfuse                                     # upgrade later
-> ```
->
-> If you must stay on pipx: delete any leftover broken launchers
-> (`del "$env:USERPROFILE\.local\bin\specfuse*.exe"`) and run pipx itself under
-> **Python 3.13** so its own process isn't 3.14. A plain `py -m venv` + `pip install
-> "specfuse[all]"` also works (you manage PATH yourself).
+> **The old flat commands still work.** `specfuse-loop`, `specfuse-lint`,
+> `specfuse-authoring` and the rest are deprecated aliases, removed in 1.0.0.
+> `specfuse doctor` lists the ones still on PATH. One name on PATH is the point:
+> the flat names are also the standalone packages' console scripts, so two
+> installs could fight over them and the loser's upgrades silently changed nothing
+> about what ran. See
+> [`docs/plan-bundle-suite-distribution.md`](docs/plan-bundle-suite-distribution.md).
 
 `specfuse init` lays down `.specfuse/` (templates, rules, docs, `verification.yml`)
 and merge-safely wires `.claude/` (including this plugin's config) — pip-native
 scaffolding via `specfuse.loop.scaffold`, no `init.sh` checkout required. Every
-`specfuse-loop` run also self-provisions (version-syncs `.specfuse/` from the
-installed package), so `pip install -U specfuse` reaches existing projects on
-their next run. `specfuse` contributes to the shared `specfuse.*` import namespace
-(so `specfuse.loop` from the driver and a future `specfuse.orchestrator` coexist).
+`specfuse run` also self-provisions (version-syncs `.specfuse/` from the installed
+package), so an upgrade reaches existing projects on their next run.
+
+The suite is one distribution with three components as **hard dependencies**
+(`specfuse-loop`, `specfuse-authoring`, `specfuse-orchestrator`) — that is what
+makes one install and one upgrade cover everything. They contribute to the shared
+`specfuse.*` import namespace, so `specfuse.loop`, `specfuse.authoring` and
+`specfuse.orchestrator` coexist in one environment.
+
+See [specfuse/loop](https://github.com/specfuse/loop) for the methodology, the
+driver, and getting-started docs.
 
 ## Plugins
+
+Installed per repo, via the marketplace — pick the toolset that repo needs.
 
 | Plugin | What it ships | Source repo |
 |--------|----------------|-------------|
 | `specfuse` | Gate-cycle skills (pick / draft / arm / diagnose / wrap, authoring, verification) | [`specfuse/loop`](https://github.com/specfuse/loop) `plugins/specfuse/` |
 | `specfuse-authoring` | Spec-craft: design OpenAPI/AsyncAPI/Arazzo, validate, bundle + the `specs` agent (idea → validated initiative) | [`specfuse/authoring`](https://github.com/specfuse/authoring) `plugins/specfuse-authoring/` |
 | `specfuse-orchestrator` | Multi-repo initiative coordination (onboard, pm) | [`specfuse/orchestrator`](https://github.com/specfuse/orchestrator) `plugins/specfuse-orchestrator/` |
+
+Update with `/plugin update specfuse@specfuse`; reload after changes with
+`/reload-plugins`. The skills drive the pip-installed commands above.
 
 ## Layout
 
