@@ -213,6 +213,18 @@ specfuse: pipx upgrade failed (exit 1).
 Both installers re-resolve correctly unaided, so the flag is gone from the pipx
 path. It is kept on the plain-`pip` path only to pin intent (see T4).
 
+### Consequence: nothing of ours gates a component release
+
+Hard deps re-resolve on upgrade, which is the point — but it also removed the
+accidental gate a stale floor used to provide. A component that renames a module
+or `main()` breaks a `specfuse <subcommand>` for every user on their next upgrade,
+and `ci.yml` only runs on pull requests and pushes to main here.
+
+`component-compat.yml` closes that: nightly, it installs the *published* umbrella
+with `--no-cache-dir` and resolves every dispatch target, then runs the suite from
+the working tree against the same components, and opens an issue on failure. The
+release flow this implies is written up in [`releasing.md`](releasing.md).
+
 ## Remaining work for 1.0.0
 
 1. Migrate every scaffold template, hook, `verification.yml` and skill in the
