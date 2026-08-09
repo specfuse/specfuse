@@ -1,12 +1,14 @@
 # Copyright 2026 Specfuse contributors
 # Licensed under the Apache License, Version 2.0. See LICENSE.
 #
-# Release: on a `v*` tag, build the wheel + sdist for the `specfuse` umbrella CLI,
+# Release: on a `v*` tag, build the wheel + sdist for the `specfuse` umbrella,
 # run its test suite against the built artifact, then publish to PyPI via OIDC trusted
-# publishing. The umbrella depends on specfuse-loop; since the FEAT-2026-0028 rewire,
-# specfuse.cli imports specfuse.loop.scaffold at load time, so the wheel is installed
-# WITH deps (the pinned specfuse-loop>=0.3.0 resolves from PyPI). Publish order:
-# specfuse-loop first, then specfuse — so the dep is resolvable when this runs.
+# publishing.
+#
+# The umbrella IS the suite: specfuse-loop, specfuse-orchestrator and
+# specfuse-authoring are HARD dependencies, so the wheel is installed WITH deps and
+# all three resolve from PyPI. Publish order: components first, then specfuse — so
+# every floor is resolvable when this runs.
 
 name: release
 
@@ -36,13 +38,11 @@ jobs:
           python -m venv /tmp/relenv
           /tmp/relenv/bin/python -m pip install --upgrade pip
           WHEEL=$(ls dist/*.whl)
-          # Install WITH deps: as of the FEAT-2026-0028 scaffold-API rewire,
-          # `specfuse.cli` imports `specfuse.loop.scaffold` at load time, so the
-          # smoke import below needs the driver present. The pinned
-          # `specfuse-loop>=0.3.0` resolves from PyPI (published first per the
-          # coordinated-release order). The old --no-deps path predated the
-          # rewire and now fails with ModuleNotFoundError: No module named
-          # 'specfuse.loop'.
+          # Install WITH deps: `specfuse.cli` imports `specfuse.loop.scaffold` at
+          # load time and dispatches into all three components, so the smoke checks
+          # below need them present. They resolve from PyPI (published first per the
+          # coordinated-release order). A --no-deps install fails with
+          # ModuleNotFoundError: No module named 'specfuse.loop'.
           # + pytest: tests/ now includes pytest-based suites (test_publish.py for
           # the marketplace publish mechanism), so run under pytest, which also
           # collects the unittest.TestCase suites. `unittest discover` chokes on the
@@ -52,6 +52,36 @@ jobs:
           /tmp/relenv/bin/specfuse --version
           # Run the test suite from the repo (against the installed package).
           /tmp/relenv/bin/python -m pytest tests/ -q
+
+      # The tests assert what pyproject DECLARES; only an install proves what
+      # actually lands. The whole point of the bundled distribution is that a plain
+      # install puts every command on PATH with no installer flags, so verify the
+      # console scripts exist in the venv's bin and that a subcommand dispatches.
+      - name: Verify the installed command surface
+        run: |
+          set -eu
+          MISSING=""
+          for cmd in specfuse specfuse-loop specfuse-lint specfuse-monitor \
+                     specfuse-monitor-lint specfuse-stats specfuse-authoring \
+                     specfuse-orchestrator specfuse-poller specfuse-runner \
+                     specfuse-validate-event specfuse-validate-frontmatter; do
+            [ -x "/tmp/relenv/bin/$cmd" ] || MISSING="$MISSING $cmd"
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::console scripts missing from the install:$MISSING"; exit 1
+          fi
+          echo "all 12 console scripts installed"
+          # Dispatch, not just presence: every delegated subcommand must resolve to
+          # an importable component main. A component that renames a module would
+          # otherwise ship a subcommand that ImportErrors at run time.
+          /tmp/relenv/bin/python - <<'PY'
+          import importlib
+          from specfuse import cli
+          for sub, (target, flat, _help) in sorted(cli.DELEGATED_COMMANDS.items()):
+              module, _, func = target.partition(":")
+              assert callable(getattr(importlib.import_module(module), func)), target
+              print(f"  specfuse {sub:<22} -> {target}")
+          PY
 
       - name: Tag/version agreement check
         if: startsWith(github.ref, 'refs/tags/v')

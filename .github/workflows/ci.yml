@@ -13,10 +13,17 @@
 # tests the WORKING TREE via an editable install. Both matter; neither replaces
 # the other. Keep the pytest invocation in sync between them.
 #
-# Note `pip install -e '.[dev]'` resolves specfuse-loop from PyPI (a runtime dep,
-# pinned >=0.6.0), so tests here run against the PUBLISHED driver, not a local
-# checkout. That is correct for an umbrella package, but it does mean a PR here
-# cannot catch an unreleased driver regression.
+# Note `pip install -e '.[dev]'` resolves all three components from PyPI
+# (specfuse-loop, specfuse-orchestrator, specfuse-authoring are runtime deps), so
+# tests here run against the PUBLISHED components, not local checkouts. That is
+# correct for an umbrella package, but it does mean a PR here cannot catch an
+# unreleased component regression.
+#
+# It also makes this job the guard on the re-exported entry points: pyproject
+# names eleven modules this repo does not own, and
+# tests/test_entry_points.py::test_every_target_imports_and_is_callable resolves
+# each one against the installed components. A component renaming a module would
+# otherwise ship a console script that ImportErrors at run time.
 #
 # Make this a REQUIRED status check in branch protection for it to actually block
 # — same reasoning plugin-drift-guard.yml documents for itself. A check that
