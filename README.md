@@ -111,6 +111,17 @@ plugins/<name>/                    # GENERATED copies — do not hand-edit (see 
   agents/<agent>.md
 ```
 
+## Releasing (contributors)
+
+**[`docs/releasing.md`](docs/releasing.md)** is the reference: who publishes what,
+and when a component release does — or does not — need an umbrella release.
+
+The short version: the components are hard dependencies of `specfuse`, so a
+component release reaches users on their next `specfuse upgrade` **without** an
+umbrella release. Version floors here are minimums, not levers — don't bump one
+just because a component shipped. An umbrella release is needed only when its own
+code changes, or when a component adds a command or renames a module.
+
 ## How the plugins are sourced (contributors)
 
 **Edit a plugin in its origin repo, never here.** Each plugin's canonical source

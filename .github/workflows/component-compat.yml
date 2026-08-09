@@ -1,0 +1,136 @@
+# Copyright 2026 Specfuse contributors
+# Licensed under the Apache License, Version 2.0. See LICENSE.
+#
+# Nightly component-compatibility guard.
+#
+# Since 0.10.0 the components are HARD dependencies, so `pipx upgrade specfuse` /
+# `uv tool upgrade specfuse` re-resolves them: a component release reaches every
+# user on their next upgrade WITHOUT an umbrella release. That is the point — it
+# retired the "bump the floor every time a component ships" ritual — but it also
+# removed the accidental gate a stale floor used to provide. Nothing of ours sits
+# between a component's publish and a user's machine.
+#
+# The specific way that bites: `specfuse.cli.DELEGATED_COMMANDS` dispatches by
+# dotted path (`specfuse.loop.lint_plan:main`, `specfuse.authoring.cli:_run`, …).
+# A component that renames a module or its main() turns a subcommand into a
+# run-time ImportError. ci.yml would catch it — but ci.yml only runs on pull
+# requests and pushes to main, so with no PR open here the breakage sits live for
+# however long nobody touches this repo.
+#
+# This job asks the two questions that matter, every night:
+#   1. Are users broken RIGHT NOW? (the published wheel + latest components)
+#   2. Is main broken against what components ship today? (working tree + tests)
+#
+# On failure it opens (or comments on) an issue — a red square in the Actions tab
+# that nobody subscribes to is not a guard.
+#
+# NOTE: scheduled workflows run only from the DEFAULT BRANCH. This file has no
+# effect until it is on main.
+
+name: component-compat
+
+on:
+  schedule:
+    # 06:17 UTC — off the hour, where GitHub's scheduler is least congested.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  component-compat:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Question 1: the PUBLISHED umbrella against whatever the components resolve
+      # to today. This is exactly what a user gets from `pipx install specfuse`, so
+      # a failure here means users are broken now, not at the next release.
+      - name: Published umbrella vs latest components
+        run: |
+          set -eu
+          python -m venv /tmp/pubenv
+          # --no-cache-dir: a cached index would defeat the entire point of asking
+          # "what resolves today".
+          /tmp/pubenv/bin/python -m pip install --quiet --upgrade pip
+          /tmp/pubenv/bin/python -m pip install --quiet --no-cache-dir specfuse
+          /tmp/pubenv/bin/specfuse --version
+          MISSING=""
+          for cmd in specfuse specfuse-loop specfuse-lint specfuse-monitor \
+                     specfuse-monitor-lint specfuse-stats specfuse-authoring \
+                     specfuse-orchestrator specfuse-poller specfuse-runner \
+                     specfuse-validate-event specfuse-validate-frontmatter; do
+            [ -x "/tmp/pubenv/bin/$cmd" ] || MISSING="$MISSING $cmd"
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::published install is missing console scripts:$MISSING"; exit 1
+          fi
+          /tmp/pubenv/bin/python - <<'PY'
+          import importlib, sys
+          from specfuse import cli
+          broken = []
+          for sub, (target, flat, _help) in sorted(cli.DELEGATED_COMMANDS.items()):
+              module, _, func = target.partition(":")
+              try:
+                  assert callable(getattr(importlib.import_module(module), func))
+              except Exception as exc:                      # noqa: BLE001 - report all
+                  broken.append(f"specfuse {sub} -> {target}: {exc!r}")
+              else:
+                  print(f"  ok  specfuse {sub:<22} -> {target}")
+          if broken:
+              print("::error::released subcommands no longer resolve:")
+              for line in broken:
+                  print(f"::error::  {line}")
+              sys.exit(1)
+          PY
+
+      # Question 2: main against the same components. Catches a break before the
+      # next release ships it, and runs the full suite rather than just resolving
+      # the dispatch targets.
+      - name: Working tree vs latest components
+        run: |
+          set -eu
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet --no-cache-dir --upgrade -e '.[dev]'
+          python -m pip list | grep -E "^specfuse" || true
+          python -m pytest tests/ -q
+
+      # A nightly failure nobody is subscribed to is not a guard. One open issue at
+      # a time — subsequent failures comment on it rather than filing duplicates.
+      # Schedule only: a failure while someone is manually debugging is not news.
+      - name: Report failure as an issue
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -eu
+          TITLE="component-compat: the suite no longer resolves against latest components"
+          # A QUOTED heredoc written to a file, not $(cat <<EOF ...) inline: an
+          # unquoted heredoc inside command substitution needs every backtick
+          # escaped and trips older bash parsers on a plain apostrophe. This way
+          # the body is literal text and needs no escaping at all.
+          cat > /tmp/issue-body.md <<'EOF'
+          The nightly component-compatibility run failed.
+
+          This means a component release has broken the umbrella — most likely a
+          renamed module or `main()`, which turns a `specfuse <subcommand>` into a
+          run-time ImportError. See `DELEGATED_COMMANDS` in `specfuse/cli.py`.
+
+          Fix: update the dispatch target, raise that component's floor in
+          `pyproject.toml` to the release that renamed it, and cut an umbrella
+          release. See `docs/releasing.md`.
+          EOF
+          printf '\nRun: %s\n' "$RUN_URL" >> /tmp/issue-body.md
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number -q '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body-file /tmp/issue-body.md
+          else
+            gh issue create --title "$TITLE" --body-file /tmp/issue-body.md
+          fi
