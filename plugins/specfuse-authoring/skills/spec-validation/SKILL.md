@@ -316,6 +316,7 @@ The skill translates raw validator errors into actionable remediation. For each 
 | `unknown spec format` | The validator cannot determine whether the file is OpenAPI, AsyncAPI, or Arazzo. | Ensure the file has the correct top-level discriminator: `openapi: "3.x.x"` for OpenAPI, `asyncapi: "2.x.x"` or `asyncapi: "3.x.x"` for AsyncAPI, `arazzo: "1.0"` for Arazzo. |
 | `missing channel` or `missing channels` | An AsyncAPI document is missing the `channels` section. | Add a `channels` object with at least one channel definition. Each channel must have a name and at least one operation (publish/subscribe). |
 | `invalid sourceDescription reference` | An Arazzo workflow references a `sourceDescription` that does not exist in the document's `sourceDescriptions` array. | Check the `sourceDescriptions` array at the top level of the Arazzo document. Add the missing entry, ensuring the `name` matches what the workflow step references and the `url` points to a valid OpenAPI or AsyncAPI document. |
+| `must NOT have additional properties` on an `x-*` block | A vendor extension carries a key the repo's Spectral ruleset does not list. Read this as a **ruleset gap before a spec error**: the guard is a closed schema over a vocabulary the generator owns, so a key the generator added and the ruleset never learned about produces exactly this message, pointing at the spec. | Check the key against `Vendor_Extensions.md` first. If the handbook documents it, the ruleset is behind — run `./scripts/check-extension-vocabulary.py` to confirm, then add the key to the guard's schema in the same change that adopts it. Only if the handbook does not document it is this a spec typo. |
 | `acceptance criterion .* not testable` | A feature narrative's acceptance criterion does not map to a testable behavior — it is too vague, describes multiple behaviors, or lacks an observable outcome. | Rewrite the criterion to describe a single, observable behavior. Each criterion should answer: "What input triggers this behavior? What observable outcome does it produce?" See the spec-drafting skill's §"Writing acceptance criteria that the QA agent can consume" for examples. |
 
 **Errors not in the table.** For any error whose message does not match a pattern in the table above, the skill presents the raw error with:
@@ -332,6 +333,46 @@ validator output below.
 If this error recurs across features, consider filing an issue to
 expand the interpretation table.
 ```
+
+## Closed-schema extension guards must be verified against their owner
+
+A repo that lints vendor extensions with `additionalProperties: false` has
+closed a schema over a vocabulary **it does not own**. The generator owns that
+vocabulary and adds to it on its own release cadence. This is not a warning-level
+exposure: when the generator ships a new key, the first spec that declares it
+fails lint with an `additionalProperties` error, so the generator feature cannot
+be adopted at all, and the failure names the spec instead of the ruleset.
+
+**The skill treats an automated agreement check as a precondition for trusting a
+clean lint.** Before reporting a Spectral pass as evidence, confirm the repo has
+one:
+
+1. `./scripts/check-extension-vocabulary.py` exists and is invoked by the
+   Spectral runner (the kit wires it into `validate-spectral.sh`).
+2. Its most recent run did not skip. A skip is loud but still a skip — with no
+   cached generator jar, nothing was verified. CI should pass `--require-jar`.
+
+If the repo has no such check, say so in the validation summary and treat the
+Spectral result as unverified for extension shape. Do not accept **"the ruleset
+is updated by hand whenever a feature adds a key"** as a substitute. That is the
+practice this exists to replace: it failed three times on one extension —
+`x-entity.domain` shipped across 78 entities and sat broken for months,
+`x-entity.concurrency` blocked a rollout until someone patched the ruleset, and
+`x-entity.delete` was heading for the same wall. Each was caught by a human
+noticing, which is not a control.
+
+**Every closed guard, not just the famous one.** `x-entity` is where this keeps
+being discovered, but the exposure belongs to the closed schema, not the
+extension: `x-value-object`, the async and Arazzo rulesets, and any project-local
+`<token>-*-shape` rule have it identically. The check discovers guards
+structurally — any rule whose `then` closes a schema — so a guard added next
+month is covered without editing anything.
+
+**One ruleset, one runner.** A second copy of a hand-maintained ruleset drifts
+silently, and the copy CI does not run is the one that rots — a real instance had
+diverged so far that the platform running it rejected every entity in the tree
+while CI stayed green on the other copy. Ruleset files no script names are
+reported for this reason.
 
 ## Idempotence under re-validation
 

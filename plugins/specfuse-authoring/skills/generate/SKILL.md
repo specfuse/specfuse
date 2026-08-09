@@ -14,17 +14,17 @@ Generate frontend and backend code artifacts from the API specifications.
 
 ## Prerequisites — verify before running
 
-1. `specfuse-authoring` is on PATH (`pipx install specfuse-authoring`, or `pipx install --force --include-deps 'specfuse[all]'` if you run the umbrella CLI — install it one way, not both, or the command resolves to whichever install claimed the shim first). The generator itself is not a file in the project — the CLI resolves and checksum-verifies the version pinned in `generator.lock` on demand.
+1. `specfuse` is on PATH (`pipx install specfuse`, or `uv tool install specfuse`). The generator itself is not a file in the project — the CLI resolves and checksum-verifies the version pinned in `generator.lock` on demand. On a standalone kit install the deprecated flat `specfuse-authoring` command still works; drop the `specfuse ` prefix from the commands below.
 2. The project config file (typically `<project>-project.json`) exists in the project root
 3. Specifications are valid — if not recently validated, run `/validate` first
 
 ## Steps
 
-Artifact groups are declared in the project config; generate the ones the project defines. `specfuse-authoring generate` passes its arguments through to the generator.
+Artifact groups are declared in the project config; generate the ones the project defines. `specfuse authoring generate` passes its arguments through to the generator.
 
-1. **Generate backend (C#)** — Run `specfuse-authoring generate --group "<backend group>" <project>-project.json`
-2. **Generate frontend (Flutter)** — Run `specfuse-authoring generate --group "<frontend group>" <project>-project.json`
-3. **Generate workers (C#)** — If `asyncSpecifications` is defined in the project config, run `specfuse-authoring generate --group "<workers group>" <project>-project.json`
+1. **Generate backend (C#)** — Run `specfuse authoring generate --group "<backend group>" <project>-project.json`
+2. **Generate frontend (Flutter)** — Run `specfuse authoring generate --group "<frontend group>" <project>-project.json`
+3. **Generate workers (C#)** — If `asyncSpecifications` is defined in the project config, run `specfuse authoring generate --group "<workers group>" <project>-project.json`
 4. **Generate documentation (Markdown)** — Run `./scripts/generate-scenario-docs.sh`. It bundles the specs, then calls the CLI for both markdown artifact groups defined in the project config:
    - `Documentation - Scenarios` → `scenarioDocument`, `scenarioIndex` (output: `./api/docs`)
    - `Documentation - Technical References` → `recipeDocumentation`, `entityDiagram`, `eventCatalog`, `channelTopology`, `docsIndex` (output: `./docs/generated`)

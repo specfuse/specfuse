@@ -252,6 +252,37 @@ Do **not** use:
 
 The agent surfaces this guidance during **Phase 1 — Feature scoping**, specifically when drafting the `## Scope` section's bullets. The agent reviews each bullet for ambiguous "expected" or hedging language and proposes concrete alternatives before the human approves the scope.
 
+## Adopting a vendor-extension key is two edits, and the second is invisible
+
+Writing a new `x-*` key into a spec is not a spec edit alone. The repo's Spectral
+ruleset validates several extensions with `additionalProperties: false`, so the
+key must also exist in that guard's schema — and **nothing in the spec being
+drafted reveals that**. The handbook documents the key, the generator supports
+it, the spec reads correctly, and lint rejects it with an `additionalProperties`
+error that names the spec.
+
+**When adopting a key the repo has not used before:**
+
+1. Confirm the key in [`Vendor_Extensions.md`](../../.specfuse/authoring/handbooks/Vendor_Extensions.md) —
+   which surface it belongs to and its value constraint. A key documented under
+   one extension is sometimes authored inside another's block, and the guard
+   that must accept it is the one covering where you write it.
+2. Check the guard that covers that surface in
+   `.specfuse/authoring/schemas/spectral/` — `specfuse-xentity-shape` for
+   `x-entity`, `specfuse-xvalueobject-shape` for `x-value-object`, and the
+   equivalents in the async and Arazzo rulesets. If the key is absent, the
+   ruleset edit belongs in the same change as the spec edit.
+3. Run `./scripts/check-extension-vocabulary.py`. It compares each closed guard
+   against the pinned generator's vocabulary and names exactly which keys the
+   generator knows and the ruleset rejects. A clean run is what makes "the key
+   is supported" checkable rather than remembered.
+
+**Do not treat lint as the discovery mechanism.** It reports the symptom in the
+wrong place: the message points at the spec, the fault is in the ruleset, and the
+author's likely first move — deleting the key — abandons the generator feature
+being adopted. Three keys on `x-entity` (`domain`, `concurrency`, `delete`)
+reached that state, one of them across 78 entities.
+
 ## Worked example
 
 A realistic spec-drafting session for a small REST API feature, demonstrating the three-phase structure, F3.32-compliant scope language, and QA-consumable acceptance criteria.
