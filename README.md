@@ -23,6 +23,13 @@ command. No extras, no `--include-deps`, no bracket quoting. Upgrade with:
 specfuse upgrade              # runs your installer for you
 ```
 
+That upgrades the components too, even when the umbrella's own version has not
+changed — which is the normal case, since components release on their own
+schedule. Use it rather than `pip install -U specfuse`: plain pip leaves a
+component at its installed version whenever the umbrella's floor is already
+satisfied, exits 0, and tells you nothing. `specfuse doctor` reports any
+component that has fallen behind.
+
 Then, in Claude Code, install the plugins the repo needs:
 
 ```
@@ -44,7 +51,8 @@ One command, one name on PATH.
 ```
 specfuse init [DIR]           # scaffold .specfuse/ + wire .claude/ — or upgrade what's there
 specfuse upgrade [DIR]        # the same thing, named for the other direction
-specfuse doctor [--fix]       # check every suite command resolves here; --fix clears dead shims
+specfuse doctor [--fix]       # check every suite command resolves here + flag outdated components
+                              #   --fix clears dead shims; --no-network skips the PyPI check
 specfuse --version            # the umbrella version + every component's resolved version
 ```
 

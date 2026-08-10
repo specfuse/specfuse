@@ -43,12 +43,15 @@ import importlib.metadata
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import sysconfig
 import tempfile
+import urllib.request
 from pathlib import Path
+from typing import Callable
 
 from specfuse.loop import scaffold
 
@@ -221,6 +224,105 @@ def _component_versions() -> list[tuple[str, str]]:
     return out
 
 
+def _release_key(version: str) -> tuple[int, ...] | None:
+    """The numeric release segment as a comparable tuple, or None if unparsable.
+
+    Deliberately not a full PEP 440 implementation: `packaging` is not a
+    dependency of this package, and the only decision made here is whether to
+    print one advisory line. Anything with a pre/post/dev suffix parses down to
+    its release numbers, which is close enough to answer "is there something
+    newer" and never wrong in a way that matters — the fallback is silence.
+    """
+    m = re.match(r"^\s*v?(\d+(?:\.\d+)*)", version)
+    return tuple(int(p) for p in m.group(1).split(".")) if m else None
+
+
+def _latest_on_pypi(dist: str, *, timeout: float = 2.0) -> str | None:
+    """The newest published version of `dist`, or None if it cannot be learned.
+
+    The JSON API, not the simple index. #111 established that the two are
+    independently eventually-consistent and that only the simple index decides
+    whether pip can *resolve* — but the question here is not resolvability, it
+    is "is the user behind", and the cost of a lagging answer is one delayed
+    nudge rather than a failed release. The JSON API gives the answer in one
+    request with no parsing of index HTML.
+
+    Every failure returns None: no network, a proxy, PyPI down, a rate limit, a
+    private index. An advisory must never become the reason a diagnostic command
+    fails.
+    """
+    try:
+        with urllib.request.urlopen(  # noqa: S310 — fixed https host, not user input
+            f"https://pypi.org/pypi/{dist}/json", timeout=timeout
+        ) as response:
+            return json.load(response)["info"]["version"]
+    except Exception:  # noqa: BLE001 — deliberately total; see below
+        # Blind on purpose, not laziness. An enumerated list (URLError, OSError,
+        # TimeoutError, JSONDecodeError, KeyError...) fails the one way that
+        # matters: the type nobody predicted crashes `doctor` for a user whose
+        # only sin was being behind a proxy. The advisory has no value worth an
+        # exception, so every failure means "unknown", which means silence.
+        return None
+
+
+def outdated_components(
+    *,
+    installed: list[tuple[str, str]] | None = None,
+    fetch: Callable[[str], str | None] | None = None,
+) -> list[tuple[str, str, str]]:
+    """`[(dist, installed, latest)]` for every component behind the index.
+
+    A component that is not installed, whose latest cannot be learned, or whose
+    version does not parse is skipped rather than guessed at. Equal or ahead is
+    not reported — a maintainer running an unreleased local build should not be
+    told to downgrade.
+    """
+    # Resolved at call time, not bound as a default, so `mock.patch` on the
+    # module attribute is honored — same reason `_pip_install` resolves `runner`.
+    fetch = fetch or _latest_on_pypi
+    behind: list[tuple[str, str, str]] = []
+    for dist, version in (installed if installed is not None else _component_versions()):
+        if version == "not installed":
+            continue
+        latest = fetch(dist)
+        if latest is None:
+            continue
+        have, newest = _release_key(version), _release_key(latest)
+        if have is not None and newest is not None and have < newest:
+            behind.append((dist, version, latest))
+    return behind
+
+
+def report_outdated_components(
+    *,
+    fetch: Callable[[str], str | None] | None = None,
+    log: Callable[[str], None] | None = None,
+) -> list[tuple[str, str, str]]:
+    """Advise when a component has moved. Returns what was reported.
+
+    Nothing else in the suite notices this. Since #125 the components are hard
+    dependencies with floors that are minimums, so a component release reaches
+    users on their next upgrade and never prompts one — every path is pull. The
+    nightly `component-compat` guard catches components that BREAK users, not
+    components that merely moved.
+
+    Advisory only: never changes the caller's exit code. Being a release behind
+    is not a broken install, and `doctor` exits non-zero for things CI should
+    gate on.
+    """
+    log = log or (lambda line: print(line, file=sys.stderr))
+    behind = outdated_components(fetch=fetch)
+    if not behind:
+        return []
+    log("specfuse: newer component releases are available:")
+    width = max(len(dist) for dist, _, _ in behind)
+    for dist, have, latest in behind:
+        log(f"  {dist:<{width}}  {have} -> {latest}")
+    log("specfuse: `specfuse upgrade` pulls them. Note that a plain "
+        "`pip install -U specfuse` does NOT — see docs/releasing.md.")
+    return behind
+
+
 def version_report() -> str:
     """The `--version` text: umbrella version plus the resolved component table."""
     components = _component_versions()
@@ -255,14 +357,21 @@ def _pip_install(packages: list[str], *, upgrade: bool, runner=None) -> int:
     An upgrade passes `--upgrade-strategy eager` to state the intent explicitly:
     every component moves to the newest version the floors allow.
 
-    It is NOT load-bearing on current pip. `--upgrade-strategy only-if-needed`
-    (the default) is documented as upgrading a dependency only when it no longer
-    satisfies the requirement, which would strand a component that still satisfies
-    its floor — but measured on pip 25, a plain `pip install --upgrade <pkg>`
-    carries satisfied dependencies to the newest version anyway (verified both on
-    this wheel and on a neutral package/dependency pair). The flag is kept because
-    it pins the behaviour the suite needs rather than inheriting whatever the
-    default happens to mean in a given pip release.
+    **The flag is load-bearing. Do not remove it.** An earlier version of this
+    docstring recorded the opposite ("measured on pip 25, a plain
+    `pip install --upgrade <pkg>` carries satisfied dependencies to the newest
+    version anyway"). That does not hold on pip 26.1.2: with the umbrella already
+    at its newest version and `specfuse-authoring>=0.5.6` satisfied by an
+    installed 0.5.6, a plain `--upgrade` left it at 0.5.6 while 0.6.0 was on the
+    index — twice, the second time on a clean venv. That is exactly what
+    `--upgrade-strategy only-if-needed` is documented to do, and since #125 made
+    the floors minimums rather than levers, a satisfied floor is the normal state
+    of every component between umbrella releases. Without the flag, a plain-venv
+    install stops receiving component releases entirely and says nothing.
+
+    pipx and uv need no such flag — both re-resolve the environment (verified:
+    `pipx upgrade specfuse` moved authoring 0.5.6 -> 0.6.0 while reporting the
+    umbrella "already at latest version").
     """
     runner = runner or subprocess.run
     cmd = [sys.executable, "-m", "pip", "install"]
@@ -303,10 +412,12 @@ def _installer_upgrade_command(installer: str, tool: str) -> list[str] | None:
         'uv pip install --python … --upgrade --upgrade-strategy=eager …' failed
         specfuse: pipx upgrade failed (exit 1).
 
-    It was also unnecessary: measured on pip 25, a plain `--upgrade` already
-    carries satisfied dependencies to the newest version (see `_pip_install`).
-    Both installers do the right thing unaided — uv re-resolves a tool's whole
-    environment, and pipx re-resolves the umbrella's dependency set.
+    It was also unnecessary *here*: both installers do the right thing unaided —
+    uv re-resolves a tool's whole environment, and pipx re-resolves the
+    umbrella's dependency set, so each pulls a newer component with the umbrella
+    version unchanged. That is specific to pipx/uv. Plain pip does NOT behave
+    this way and still needs the eager flag `_pip_install` passes; see its
+    docstring before concluding the flag is decorative there too.
     """
     exe = shutil.which(installer)
     if exe is None:
@@ -648,7 +759,16 @@ def cmd_doctor(args: argparse.Namespace, *, runner=None) -> int:
 
     `--fix` deletes the dangling shims first (see _REMOVABLE_KINDS) and re-runs the
     diagnosis, so the exit code reflects what is left, not what was found.
+
+    The component-staleness advisory runs BEFORE the not-tool-managed early
+    return, deliberately. That branch is the plain-venv install — precisely the
+    one where a plain `pip install -U specfuse` silently leaves components behind
+    (see `_pip_install`), so it is the environment that most needs telling. It is
+    advisory and never affects the exit code.
     """
+    if not getattr(args, "no_network", False):
+        report_outdated_components()
+
     if not _managed_by_tool():
         print("specfuse: not a pipx/uv-managed install — this environment puts "
               "its scripts on PATH directly, so there are no shims to check.")
@@ -873,6 +993,11 @@ def build_parser() -> argparse.ArgumentParser:
     doc = sub.add_parser("doctor", help="check that suite commands on PATH resolve here")
     doc.add_argument("--fix", action="store_true",
                      help="delete shims that point at nothing (leaves other installs alone)")
+    # The staleness advisory already fails soft on any network error, so this is
+    # for callers that want no outbound request attempted at all — an air-gapped
+    # build, or CI that gates on `doctor` and should not depend on pypi.org.
+    doc.add_argument("--no-network", action="store_true",
+                     help="skip the check for newer component releases on PyPI")
     doc.set_defaults(func=cmd_doctor)
 
     # Registered so they appear in `specfuse --help` and in argparse's
