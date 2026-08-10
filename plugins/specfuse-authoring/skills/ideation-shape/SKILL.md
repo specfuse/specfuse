@@ -77,7 +77,18 @@ files you found (business narratives, overlapping specs) so they aren't re-hunte
 
 Check the roadmap + registries: does this idea overlap, supersede, or depend on an
 already-minted initiative? If it duplicates one, recommend `parked` or `dropped`
-rather than shaping a redundant item. Then check the **backlog itself**: do other
+rather than shaping a redundant item.
+
+> **When the orchestrator is not reachable, degrade — do not stop.** The roadmap
+> and `features/INIT-*.md` reads are read-only enrichment, and this skill's own
+> subject (`docs/product/backlog/`) lives in this repo. If they cannot be
+> resolved, shape the idea from the backlog alone and say so in the report:
+> *"Overlap against minted work was not checked — orchestrator registries
+> unreachable."* An unchecked overlap is a caveat on the recommendation; a hard
+> stop here would make the skill unusable in any project without a sibling
+> orchestrator checkout, which is the coupling authoring #26 is removing.
+
+Then check the **backlog itself**: do other
 open ideas belong with this one as a single initiative? If so, surface the bundle
 candidate — bundling is proposed here, confirmed by the human, never auto-applied.
 
