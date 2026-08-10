@@ -29,6 +29,30 @@ file is wrong.** Raise an escalation rather than reconciling silently.
 The human opens a Claude Code session and says they want to start a new initiative. There is no
 structured-event trigger — this is a session-driven, conversational entry point.
 
+**Substrate precondition (authoring #26).** Before minting anything, resolve
+`scripts/validate-frontmatter.py`, `scripts/validate-event.py`,
+`feature-frontmatter.schema.json`, `event.schema.json`,
+`shared/templates/feature-registry.md`, and the rules under `shared/rules/`.
+None of these ship with the authoring plugin — they belong to the shared
+substrate contract, owned by the core `specfuse` plugin, which has no
+distribution path to the authoring plane yet (`specfuse/specfuse#119`).
+
+An `INIT-` id is minted from the registry and is not reusable, so this check runs
+**before** the mint, not before the write. If any artifact is unresolvable, STOP
+and report:
+
+> This skill requires the shared substrate contract (`validate-frontmatter.py`,
+> `feature-frontmatter.schema.json`, `feature-registry.md`), which the authoring
+> plugin does not ship. See authoring issue #26 / specfuse#119. No id was
+> minted, no registry entry was written, and no event was emitted.
+
+Do not improvise a replacement, skip the validation step, or read the artifacts
+out of a sibling `../orchestrator/` checkout. The sibling-checkout path is the
+dependency inversion #26 exists to remove, not a fallback.
+
+Stopping here costs a session. Stopping partway through costs a half-written
+artifact that looks finished — which is the failure this check exists to prevent.
+
 ## Inputs from the human
 
 Three required pieces of information; the skill does not assume defaults for title or repos.
@@ -217,7 +241,8 @@ features after `planning`.
 ## Rules absorbed
 
 - `shared/rules/correlation-ids.md` — ID format, minting, uniqueness; the `INIT-`/`FEAT-` root distinction (docs/naming-convention.md).
-- `shared/rules/verify-before-report.md` — four-step cycle, emission discipline, corrective-cycle limit.
+- `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
 - `shared/rules/never-touch.md` — path prohibition check on every write.
 - `shared/rules/state-vocabulary.md` — `drafting` is the initial state; no transition during intake.
 - `shared/rules/escalation-protocol.md` — `spinning_detected` after three consecutive validation failures.
