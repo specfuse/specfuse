@@ -136,10 +136,18 @@ to `specfuse/_methodology/` at build time so a wheel can carry it. That mirror i
 gitignored: generated, never committed, so there is no second copy to edit by
 mistake.
 
-`specfuse init` / `upgrade` lay it down in `.specfuse/methodology/`, which is
-**this** upgrader's slot. `.specfuse/rules/` and `.specfuse/schemas/` belong to
-`loop-init`; the manifest's invariant is one writer per install path, and the
-separate slot is what keeps the two from fighting.
+`specfuse init` / `upgrade` lay **`rules/` and `schemas/`** down in
+`.specfuse/methodology/`, which is **this** upgrader's slot. The wheel carries the
+whole substrate; only the machine contract is provisioned. The prose
+(`glossary.md`, `methodology.md`, `overview.md`) is held back because the loop
+scaffold ships its own diverged `.specfuse/docs/` versions — core is ahead on the
+roadmap status vocabulary, the loop is ahead on loop-surface detail — and laying
+core's beside them would put contradictory vocabulary in one repo. Tracked in
+#137; releasing it is a change to `PROVISIONED_SUBTREES`, not to packaging.
+
+`.specfuse/rules/` and `.specfuse/schemas/` belong to `loop-init`; the manifest's
+invariant is one writer per install path, and the separate `.specfuse/methodology/`
+slot is what keeps the two upgraders from fighting.
 
 Why it ships from core rather than from a component: follow-up #3 of
 `decision-authoring-execution-boundary.md` requires both planes to depend on core

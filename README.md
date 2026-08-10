@@ -81,10 +81,10 @@ The component tools are subcommands:
 > about what ran. See
 > [`docs/plan-bundle-suite-distribution.md`](docs/plan-bundle-suite-distribution.md).
 
-`specfuse init` also provisions the core methodology substrate — the rules,
-schemas and glossary in [`methodology/`](methodology/) — into
-`.specfuse/methodology/`, so agent skills resolve the shared contract from the
-repo they are working in rather than from a sibling checkout. These files are
+`specfuse init` also provisions the core methodology contract — the rules and
+schemas in [`methodology/`](methodology/) — into `.specfuse/methodology/`, so
+agent skills resolve the shared contract from the repo they are working in rather
+than from a sibling checkout. These files are
 core's: `init`/`upgrade` overwrite them, and repo-local rules belong in
 `.specfuse/rules-local/`.
 

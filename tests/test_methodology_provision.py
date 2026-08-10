@@ -68,13 +68,91 @@ class TestPackagedSubstrate(unittest.TestCase):
             self.assertIn(expected, names)
 
 
+class TestProvisionedSubset(unittest.TestCase):
+    """Only the machine contract is laid into a repo; the prose is held back.
+
+    The wheel carries the whole substrate — releasing the prose later is a change
+    to `PROVISIONED_SUBTREES`, not to packaging. What ships now is `rules/` and
+    `schemas/`: exactly what consumers cite, and every file in them is either
+    byte-identical to the loop scaffold's copy or absent from it, so provisioning
+    adds no contradiction to a repo.
+
+    `glossary.md` and `methodology.md` are withheld because the loop ships its own
+    diverged `.specfuse/docs/` versions — core is ahead on the roadmap status
+    vocabulary while the loop is ahead on loop-surface detail — and laying core's
+    beside them would put contradictory status vocabulary in one repo with nothing
+    saying which wins (#137).
+    """
+
+    def test_only_the_machine_contract_is_provisioned(self):
+        tops = {rel.parts[0] for rel in methodology.provisioned_files()}
+        self.assertEqual({"rules", "schemas"}, tops)
+
+    def test_the_diverged_prose_is_not_provisioned(self):
+        names = {rel.as_posix() for rel in methodology.provisioned_files()}
+        for withheld in ("glossary.md", "methodology.md", "overview.md"):
+            self.assertNotIn(withheld, names)
+
+    def test_the_wheel_still_carries_the_prose(self):
+        # Withheld from provisioning, NOT from the package — otherwise releasing
+        # it later means changing the build rather than one tuple.
+        names = {rel.as_posix() for rel in methodology.substrate_files()}
+        for present in ("glossary.md", "methodology.md", "overview.md"):
+            self.assertIn(present, names)
+
+    # Provisioned files that currently differ from the loop scaffold's copy.
+    #
+    # Held to a higher bar than "documented": each must be a case where core is
+    # RIGHT and the loop is stale, with the fix already filed — not an open
+    # editorial question. The prose is the opposite (both sides legitimate) and is
+    # withheld from provisioning entirely rather than waived here.
+    KNOWN_SCAFFOLD_DIVERGENCES = {
+        "schemas/event.schema.json",
+        "schemas/events/spec_issue_routed.schema.json",
+        "schemas/events/spec_issue_resolved.schema.json",
+    }
+
+    def _scaffold_seed(self) -> Path:
+        try:
+            from specfuse.loop import scaffold as loop_scaffold
+        except ImportError:  # pragma: no cover - components are hard deps
+            self.fail("specfuse-loop is a hard dependency and must be importable")
+        return Path(loop_scaffold.__file__).resolve().parent / "data"
+
+    def _diverged_from_scaffold(self) -> set[str]:
+        seed, root = self._scaffold_seed(), methodology.packaged_root()
+        return {rel.as_posix() for rel in methodology.provisioned_files()
+                if (seed / rel).is_file()
+                and (seed / rel).read_bytes() != (root / rel).read_bytes()}
+
+    def test_nothing_unexpected_contradicts_the_loop_scaffold(self):
+        # Why this subset is safe to provision: every file is absent from the
+        # loop's scaffold, byte-identical to it, or a known stale-loop case.
+        # Anything else would put two different truths in one repo unannounced.
+        unexpected = self._diverged_from_scaffold() - self.KNOWN_SCAFFOLD_DIVERGENCES
+        self.assertEqual(
+            set(), unexpected,
+            "these differ from the loop scaffold with no recorded reason:\n  "
+            + "\n  ".join(sorted(unexpected)))
+
+    def test_no_scaffold_waiver_outlives_its_cause(self):
+        # Clears when specfuse/loop#1433 re-vendors and releases. Same discipline
+        # as test_substrate_drift: an exception that survives its condition is how
+        # the next divergence passes unnoticed.
+        stale = self.KNOWN_SCAFFOLD_DIVERGENCES - self._diverged_from_scaffold()
+        self.assertEqual(
+            set(), stale,
+            "the loop scaffold now agrees on these — delete them from "
+            "KNOWN_SCAFFOLD_DIVERGENCES:\n  " + "\n  ".join(sorted(stale)))
+
+
 class TestProvision(unittest.TestCase):
 
     def test_writes_every_file_under_its_own_slot(self):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp)
             written = methodology.provision(target)
-            self.assertEqual(len(written), len(methodology.substrate_files()))
+            self.assertEqual(len(written), len(methodology.provisioned_files()))
             for rel in written:
                 self.assertTrue(rel.startswith(".specfuse/methodology/"), rel)
                 self.assertTrue((target / rel).is_file(), rel)
@@ -92,7 +170,7 @@ class TestProvision(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp)
             written = methodology.provision(target, dry_run=True)
-            self.assertEqual(len(written), len(methodology.substrate_files()))
+            self.assertEqual(len(written), len(methodology.provisioned_files()))
             self.assertFalse((target / ".specfuse").exists())
 
     def test_is_idempotent(self):

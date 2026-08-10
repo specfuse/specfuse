@@ -43,6 +43,33 @@ MIRROR_DIRNAME = "_methodology"
 # .specfuse/rules/ and .specfuse/schemas/ — see the module docstring.
 INSTALL_SUBPATH = Path(".specfuse") / "methodology"
 
+# Which subtrees are provisioned into a repo. The wheel carries the WHOLE
+# substrate; only these are laid down.
+#
+# The machine contract ships; the prose does not, yet. `rules/` and `schemas/` are
+# what consumers actually cite — the authoring skills reference
+# `shared/rules/...` and `shared/schemas/...` and never the prose — and every
+# file in them is either byte-identical to the loop's scaffold copy or absent
+# from it, so provisioning them adds no contradiction.
+#
+# `glossary.md`, `methodology.md` and `overview.md` are held back because the loop
+# scaffold ships its own `.specfuse/docs/` versions that have genuinely diverged,
+# and not as stale copies:
+#
+#   * glossary.md   — a DIFFERENT document. Core's is a cross-surface unit
+#     reference; the loop's is onboarding prose for loop users. Both legitimate.
+#   * methodology.md — diverged in both directions. Core is ahead on the roadmap
+#     status vocabulary (the blocked/deferred split, #117); the loop is ahead on
+#     loop-surface detail core deliberately does not carry (auto_close_disabled,
+#     hedged met_locally verdicts, driver version floors).
+#
+# Provisioning those today would put two files with the same name and
+# contradictory status vocabulary in one repo, and an agent reading both would
+# have no way to know which wins. That is an editorial decision about surface
+# expressions, not a packaging one — tracked in #137, and this tuple is what
+# changes when it lands.
+PROVISIONED_SUBTREES = ("rules", "schemas")
+
 
 class MethodologyMissingError(RuntimeError):
     """The installed package carries no substrate — a broken or partial install."""
@@ -76,6 +103,17 @@ def substrate_files() -> list[Path]:
     return sorted(p.relative_to(root) for p in root.rglob("*") if p.is_file())
 
 
+def provisioned_files() -> list[Path]:
+    """The subset of the packaged substrate that is laid into a repo.
+
+    Distinct from `substrate_files()` on purpose: the wheel carries everything, so
+    releasing the prose later is a change to `PROVISIONED_SUBTREES` rather than to
+    packaging, and the mirror-integrity tests keep checking the whole tree.
+    """
+    return [rel for rel in substrate_files()
+            if rel.parts and rel.parts[0] in PROVISIONED_SUBTREES]
+
+
 def provision(target: Path, *, dry_run: bool = False) -> list[str]:
     """Copy the packaged substrate into `<target>/.specfuse/methodology/`.
 
@@ -88,7 +126,7 @@ def provision(target: Path, *, dry_run: bool = False) -> list[str]:
     """
     root = packaged_root()
     written: list[str] = []
-    for rel in substrate_files():
+    for rel in provisioned_files():
         dest = target / INSTALL_SUBPATH / rel
         written.append((INSTALL_SUBPATH / rel).as_posix())
         if dry_run:
