@@ -1,0 +1,28 @@
+# Copyright 2026 Specfuse contributors
+# Licensed under the Apache License, Version 2.0. See LICENSE.
+#
+# What the sdist must carry beyond the package itself.
+#
+# `python -m build` builds the sdist FIRST, then builds the wheel from the
+# unpacked sdist. Both entries below are required for that second step to work at
+# all, and a wheel-only build (`build --wheel`) does not exercise it — which is
+# how the sdist came to be broken unnoticed:
+#
+#   ERROR Failed to validate `build-system` in pyproject.toml:
+#   `backend-path` entry '_build' does not exist or is not a directory
+#
+# _build/       the in-tree PEP 517 backend named by `backend-path`. Without it
+#               the sdist cannot build anything, so `pip install specfuse` from
+#               source fails outright.
+# methodology/  the canonical substrate the backend mirrors into the package.
+#               Without it the build raises deliberately rather than shipping a
+#               wheel whose substrate is silently empty (see _build/backend.py).
+graft _build
+graft methodology
+
+# Tests are not shipped: release.yml runs them from the repo checkout against the
+# installed wheel, never from the sdist.
+
+# Byte-compiled leftovers from a local build are not release content.
+global-exclude __pycache__/*
+global-exclude *.py[cod]
