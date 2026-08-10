@@ -57,7 +57,7 @@ from specfuse.loop import scaffold
 
 from specfuse import methodology
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 MARKETPLACE = "specfuse/specfuse"
 PLUGIN = "specfuse@specfuse"
