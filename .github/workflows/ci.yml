@@ -25,6 +25,12 @@
 # each one against the installed components. A component renaming a module would
 # otherwise ship a console script that ImportErrors at run time.
 #
+# The pytest step also carries the docs gate: tests/test_doc_links.py resolves
+# every relative markdown link in this repo's own docs. It lives in tests/ rather
+# than in a workflow of its own precisely so it inherits this job's required
+# status — a separate workflow would need its own branch-protection wiring and
+# would sit there unenforced until someone remembered to add it.
+#
 # Make this a REQUIRED status check in branch protection for it to actually block
 # — same reasoning plugin-drift-guard.yml documents for itself. A check that
 # exists but gates nothing reads as coverage while asserting nothing.
