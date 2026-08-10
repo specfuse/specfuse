@@ -47,6 +47,30 @@ pipx:  same, `pipx upgrade specfuse`
           authoring: 0.5.6 -> 0.5.9                        (component moved anyway)
 ```
 
+### One path does not work: plain `pip install -U specfuse`
+
+`pipx`, `uv` and `specfuse upgrade` all carry components forward. A plain pip
+upgrade does not, and it is the command people reach for:
+
+```
+pip 26.1.2, umbrella already at its newest version, authoring 0.5.6 installed,
+0.6.0 on the index:
+
+  pip install --upgrade specfuse                       -> authoring stays 0.5.6
+  pip install --upgrade --upgrade-strategy eager ...   -> authoring 0.5.6 -> 0.6.0
+```
+
+It exits 0 and says nothing. `--upgrade-strategy only-if-needed` (pip's default)
+upgrades a dependency only when it no longer *satisfies* the requirement — and
+since the floors are minimums, a satisfied floor is the normal state of every
+component between umbrella releases.
+
+`specfuse upgrade` handles this: in a plain venv it shells out to pip with
+`--upgrade-strategy eager` (`_pip_install`), and in a pipx/uv environment it runs
+that installer. **Tell users `specfuse upgrade`, not `pip install -U`.** The eager
+flag in `cli.py` is load-bearing for venv installs; an earlier comment there
+claimed it was not, measured on pip 25. It is.
+
 This is why version floors in the umbrella's `pyproject.toml` are **minimums, not
 levers**. Before 0.10.0 the components were extras, extras resolve exactly once at
 install time, and the only way to move a user forward was for the umbrella to
@@ -146,6 +170,13 @@ On failure it opens — or comments on — a single issue. The failure it exists
 catch is a component renaming a module or `main()`, which turns a `specfuse
 <subcommand>` into a run-time `ImportError`: `ci.yml` would find it, but only when
 someone next opens a PR here.
+
+It catches components that **break** users, not components that merely **moved**.
+Nothing pushes a "there is a newer component" signal — every path above is pull.
+The closest thing is `specfuse doctor`, which compares each installed component
+against PyPI and prints one advisory line when any is behind (`--no-network`
+skips it; any lookup failure is silent). That still requires the user to run
+`doctor`.
 
 Scheduled workflows run only from the default branch, so changes to that file take
 effect once merged.

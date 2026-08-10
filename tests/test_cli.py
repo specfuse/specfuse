@@ -48,6 +48,10 @@ def _args(**kw):
     kw.setdefault("plugins", None)
     kw.setdefault("no_self_upgrade", False)
     kw.setdefault("fix", False)
+    # Defaults to True here while the CLI defaults it to False: `doctor` reaches
+    # pypi.org for the staleness advisory, and no test may depend on the network.
+    # TestOutdatedComponents drives that path explicitly with an injected fetch.
+    kw.setdefault("no_network", True)
     return SimpleNamespace(**kw)
 
 
@@ -962,6 +966,120 @@ class TestDoctor(unittest.TestCase):
             cli._managed_by_tool, cli.diagnose_shims = orig_managed, orig_diag
         self.assertEqual(rc, 0)
         self.assertIn("resolve to this install", out.getvalue())
+
+
+class TestOutdatedComponents(unittest.TestCase):
+    """The staleness advisory: the only thing in the suite that tells a user a
+    component moved. Since #125 the floors are minimums, so a component release
+    reaches users on their next upgrade and never prompts one — every other path
+    is pull. Every test injects the fetch; none touches the network."""
+
+    def test_release_key_orders_versions_and_tolerates_suffixes(self):
+        self.assertLess(cli._release_key("0.9.3"), cli._release_key("0.10.0"))
+        self.assertLess(cli._release_key("0.5.6"), cli._release_key("0.6.0"))
+        self.assertEqual(cli._release_key("1.2.3rc1"), (1, 2, 3))
+        self.assertIsNone(cli._release_key("not-a-version"))
+
+    def test_reports_only_the_components_that_are_behind(self):
+        installed = [("specfuse-loop", "0.10.0"),
+                     ("specfuse-authoring", "0.5.6"),
+                     ("specfuse-orchestrator", "0.5.0")]
+        latest = {"specfuse-loop": "0.10.0", "specfuse-authoring": "0.6.0",
+                  "specfuse-orchestrator": "0.5.0"}
+        self.assertEqual(
+            [("specfuse-authoring", "0.5.6", "0.6.0")],
+            cli.outdated_components(installed=installed, fetch=latest.get))
+
+    def test_a_local_build_ahead_of_the_index_is_not_reported(self):
+        # A maintainer on an unreleased build must not be told to "upgrade" to an
+        # older version.
+        self.assertEqual([], cli.outdated_components(
+            installed=[("specfuse-loop", "0.11.0")],
+            fetch=lambda _d: "0.10.0"))
+
+    def test_uninstalled_component_is_skipped(self):
+        self.assertEqual([], cli.outdated_components(
+            installed=[("specfuse-loop", "not installed")],
+            fetch=lambda _d: "9.9.9"))
+
+    def test_unreachable_index_is_silent_rather_than_an_error(self):
+        # Offline, proxied, rate-limited, private index: an advisory must never
+        # become the reason a diagnostic fails.
+        self.assertEqual([], cli.outdated_components(
+            installed=[("specfuse-loop", "0.1.0")], fetch=lambda _d: None))
+
+    def test_unparsable_version_is_skipped_not_guessed(self):
+        self.assertEqual([], cli.outdated_components(
+            installed=[("specfuse-loop", "0.1.0")], fetch=lambda _d: "mystery"))
+
+    def test_report_names_the_upgrade_path_and_the_pip_caveat(self):
+        lines: list[str] = []
+        behind = cli.report_outdated_components(
+            fetch=lambda d: "9.9.9" if d == "specfuse-loop" else None,
+            log=lines.append)
+        text = "\n".join(lines)
+        self.assertEqual(1, len(behind))
+        self.assertIn("specfuse upgrade", text)
+        # The whole reason this advisory exists: `pip install -U specfuse` looks
+        # like it works, exits 0, and leaves components behind.
+        self.assertIn("pip install -U specfuse", text)
+
+    def test_report_is_silent_when_everything_is_current(self):
+        lines: list[str] = []
+        cli.report_outdated_components(fetch=lambda _d: None, log=lines.append)
+        self.assertEqual([], lines)
+
+    def test_doctor_runs_the_advisory_on_a_plain_venv_install(self):
+        # The not-tool-managed branch returns early, and it is exactly the
+        # environment where plain pip strands components — the advisory must come
+        # first or the users who most need it never see it.
+        seen: list[str] = []
+        orig_managed = cli._managed_by_tool
+        orig_report = cli.report_outdated_components
+        cli._managed_by_tool = lambda: False
+        cli.report_outdated_components = lambda **kw: seen.append("ran") or []
+        try:
+            with redirect_stdout(io.StringIO()):
+                rc = cli.cmd_doctor(_args(no_network=False))
+        finally:
+            cli._managed_by_tool = orig_managed
+            cli.report_outdated_components = orig_report
+        self.assertEqual(rc, 0)
+        self.assertEqual(["ran"], seen)
+
+    def test_no_network_flag_attempts_nothing(self):
+        orig_managed = cli._managed_by_tool
+        orig_report = cli.report_outdated_components
+        cli._managed_by_tool = lambda: False
+
+        def _boom(**kw):
+            raise AssertionError("--no-network must not reach the network")
+
+        cli.report_outdated_components = _boom
+        try:
+            with redirect_stdout(io.StringIO()):
+                rc = cli.cmd_doctor(_args(no_network=True))
+        finally:
+            cli._managed_by_tool = orig_managed
+            cli.report_outdated_components = orig_report
+        self.assertEqual(rc, 0)
+
+    def test_advisory_never_changes_the_exit_code(self):
+        # Being a release behind is not a broken install; `doctor` exits non-zero
+        # only for things CI should gate on.
+        orig_managed, orig_diag = cli._managed_by_tool, cli.diagnose_shims
+        orig_report = cli.report_outdated_components
+        cli._managed_by_tool = lambda: True
+        cli.diagnose_shims = lambda: []
+        cli.report_outdated_components = lambda **kw: [
+            ("specfuse-loop", "0.1.0", "9.9.9")]
+        try:
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                rc = cli.cmd_doctor(_args(no_network=False))
+        finally:
+            cli._managed_by_tool, cli.diagnose_shims = orig_managed, orig_diag
+            cli.report_outdated_components = orig_report
+        self.assertEqual(rc, 0)
 
 
 class TestParser(unittest.TestCase):
