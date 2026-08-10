@@ -41,7 +41,13 @@ ROOT = Path(__file__).resolve().parent.parent
 # Directories whose markdown this repo does not author. See the module docstring.
 # Anything dot-prefixed is skipped too — .pytest_cache and .venv ship READMEs of
 # their own, and failing CI over a link inside a build artifact would be noise.
-SKIPPED_DIRS = {"plugins", "node_modules", "__pycache__", "build", "dist"}
+#
+# `_methodology/` is the build backend's generated mirror of `methodology/`. Its
+# links are authored relative to the canonical location and only resolve there, so
+# scanning the copy reports breakage that does not exist. The canonical tree IS
+# scanned, which is what the links are written against.
+SKIPPED_DIRS = {"plugins", "node_modules", "__pycache__", "build", "dist",
+                "_methodology"}
 
 # Targets that name somewhere other than this working tree.
 EXTERNAL = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//)", re.IGNORECASE)

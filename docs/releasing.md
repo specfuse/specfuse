@@ -127,6 +127,30 @@ floor is resolvable when the umbrella's release runs. Otherwise release whenever
 > the release — `uv tool install --refresh specfuse`. Worth knowing before you go
 > looking for a publishing bug.
 
+## The methodology substrate
+
+The umbrella ships `methodology/` and provisions it into a repo. `methodology/`
+stays canonical at the repo root — the orchestrator's ownership manifest names
+that exact path — and the in-tree build backend (`_build/backend.py`) mirrors it
+to `specfuse/_methodology/` at build time so a wheel can carry it. That mirror is
+gitignored: generated, never committed, so there is no second copy to edit by
+mistake.
+
+`specfuse init` / `upgrade` lay it down in `.specfuse/methodology/`, which is
+**this** upgrader's slot. `.specfuse/rules/` and `.specfuse/schemas/` belong to
+`loop-init`; the manifest's invariant is one writer per install path, and the
+separate slot is what keeps the two from fighting.
+
+Why it ships from core rather than from a component: follow-up #3 of
+`decision-authoring-execution-boundary.md` requires both planes to depend on core
+and neither to import the other. Shipping the substrate from the loop would
+relocate that dependency rather than remove it. Before this, `methodology/`
+shipped nowhere at all — consumers copied it out of git, which is how core's own
+event schema came to sit two releases behind the orchestrator's (#135).
+
+Provisioning **overwrites**. These files are core's; a local edit is drift by
+definition. Repo-local rules belong in the loop scaffold's `rules-local/`.
+
 ## The plugin track
 
 Fully automatic, and independent of the pip packages:

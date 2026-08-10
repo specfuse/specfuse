@@ -55,6 +55,8 @@ from typing import Callable
 
 from specfuse.loop import scaffold
 
+from specfuse import methodology
+
 __version__ = "0.10.0"
 
 MARKETPLACE = "specfuse/specfuse"
@@ -831,6 +833,28 @@ def _enable_plugins(target: Path, names: list[str], *, dry_run: bool) -> list[st
     return changed
 
 
+def _provision_methodology(target: Path, *, dry_run: bool) -> list[str]:
+    """Lay the core substrate into `.specfuse/methodology/`, reporting what landed.
+
+    Failure here is reported and swallowed rather than raised: the substrate is
+    additive to the scaffold, and a repo that got its `.specfuse/` but not its
+    methodology is in a worse state if the command also exits non-zero and leaves
+    the caller thinking nothing was written. The message names the remedy.
+    """
+    try:
+        written = methodology.provision(target, dry_run=dry_run)
+    except methodology.MethodologyMissingError as exc:
+        print(f"specfuse: {exc}", file=sys.stderr)
+        print("specfuse: reinstall the package to restore it "
+              "(`specfuse upgrade`, or pipx/uv install --force specfuse).",
+              file=sys.stderr)
+        return []
+    prefix = "[dry-run] would provision" if dry_run else "provisioned"
+    print(f"specfuse: {prefix} {len(written)} methodology file(s) under "
+          f"{target}/{methodology.INSTALL_SUBPATH.as_posix()}/.")
+    return written
+
+
 def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
     """Scaffold a repo's .specfuse/ + .claude wiring — or upgrade it if a scaffold
     is already there.
@@ -861,6 +885,7 @@ def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
               f"{target}/.specfuse/:")
         for rel in written:
             print(f"  .specfuse/{rel}")
+        _provision_methodology(target, dry_run=True)
         for name in plugins:
             print(f"  [dry-run] would enable plugin {PLUGIN_KEYS[name]}")
         return 0
@@ -868,6 +893,7 @@ def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
     written = scaffold.init(target, ci_check=ci_check)
     print(f"specfuse: scaffolded {len(written)} file(s) under {target}/.specfuse/ "
           f"(+ .claude wiring).")
+    _provision_methodology(target, dry_run=False)
     for key in _enable_plugins(target, plugins, dry_run=False):
         print(f"specfuse: enabled plugin {key} in .claude/settings.json.")
     print(PLUGIN_UPDATE_HINT)
@@ -919,6 +945,7 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
               f"{target}/.specfuse/ (no package upgrade in dry-run):")
         for rel in written:
             print(f"  .specfuse/{rel}")
+        _provision_methodology(target, dry_run=True)
         for key in _enable_plugins(target, plugins, dry_run=True):
             print(f"  [dry-run] would enable plugin {key}")
         return 0
@@ -936,6 +963,10 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
     else:
         print(f"specfuse: overlaid {len(written)} versioned file(s) onto "
               f"{target}/.specfuse/.")
+    # Always, even when the loop scaffold was already current: the two move on
+    # independent release cadences, so a repo whose scaffold has not changed can
+    # still be behind on the substrate.
+    _provision_methodology(target, dry_run=False)
     for key in _enable_plugins(target, plugins, dry_run=False):
         print(f"specfuse: enabled plugin {key} in .claude/settings.json.")
 
