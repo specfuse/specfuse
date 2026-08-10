@@ -41,8 +41,8 @@ The driver walks the gate's ready work units, dispatches each as a fresh session
 re-runs verification itself as the exit oracle, and commits one squashed commit
 per unit. Failures retry with the failure evidence attached, then escalate.
 
-You do not supervise this. You start it (`specfuse-loop`, after
-`specfuse-loop --dry-run`) and come back at the gate.
+You do not supervise this. You start it (`specfuse run`, after
+`specfuse run --dry-run`) and come back at the gate.
 
 **One driver per working tree.** The driver holds an exclusive lock; to run two
 features at once use separate `git worktree` checkouts. `--dry-run` is exempt.
