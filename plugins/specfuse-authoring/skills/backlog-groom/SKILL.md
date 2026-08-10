@@ -71,6 +71,15 @@ State intent: "I will groom the initiative backlog (N ideas)." Read every index 
 every dossier (state, `bundles`/`bundled_into`), and the orchestrator
 roadmap/registries.
 
+> **When the orchestrator is not reachable, degrade — do not stop.** Those reads
+> are read-only, and only one triage class depends on them: `overtaken` (idea
+> overlaps already-minted work). If they cannot be resolved, grade every other
+> class normally, report `overtaken` as *not assessed — orchestrator registries
+> unreachable*, and carry that line into the report so a human reads the gap
+> rather than inferring a clean backlog. Every write this skill makes is to
+> `docs/product/INITIATIVE_BACKLOG.md` in this repo, so none of them are blocked
+> by the absence.
+
 ### 2. Classify and report
 
 Sort every item into the triage table. Produce the report first — the human sees

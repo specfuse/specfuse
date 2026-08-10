@@ -39,6 +39,27 @@ If any precondition fails, the skill does not proceed with triage — it comment
 
 **Legacy inbox path.** A filled template dropped into `/inbox/spec-issue/` still works: the same triage runs, reading the file instead of the issue body and archiving it to `/inbox/spec-issue/processed/` on completion (the original behavior). New issues should be filed via the producer (GitHub) path.
 
+**Substrate precondition (authoring #26).** Before triaging, and before any
+write, resolve `scripts/validate-event.py`, `event.schema.json`, the per-event
+schemas it composes with, and the rules under `shared/rules/`. None of these
+ship with the authoring plugin — they belong to the shared substrate contract,
+owned by the core `specfuse` plugin, which has no distribution path to the
+authoring plane yet (`specfuse/specfuse#119`).
+
+If any is unresolvable, STOP and report:
+
+> This skill requires the shared substrate contract (`validate-event.py`,
+> `event.schema.json`, `shared/rules/`), which the authoring plugin does not
+> ship. See authoring issue #26 / specfuse#119. No spec was changed, no event
+> was emitted, and no inbox file was archived.
+
+Do not improvise a replacement, skip the validation step, or read the artifacts
+out of a sibling `../orchestrator/` checkout. The sibling-checkout path is the
+dependency inversion #26 exists to remove, not a fallback.
+
+Stopping here costs a session. Stopping partway through costs a half-written
+artifact that looks finished — which is the failure this check exists to prevent.
+
 ## Inputs
 
 The skill reads, in order:
@@ -365,7 +386,7 @@ current "200" response description to "Bookmark already exists
 4. **Emit `spec_issue_resolved` event:**
 
    ```json
-   {"timestamp":"2026-04-25T14:30:00Z","correlation_id":"FEAT-2026-0042","event_type":"spec_issue_resolved","source":"specs","source_version":"1.0.0","payload":{"original_issue_correlation_id":"FEAT-2026-0042/T09","affected_files":["product/specs/inventory-api-bookmarks.yaml"],"resolution_summary":"Added HTTP 201 response to POST /users/{user_id}/bookmarks for first-creation case; HTTP 200 retained for idempotent repeat. Fixes missing status code that caused generated controller to return 200 on all creations."}}
+   {"timestamp":"2026-04-25T14:30:00Z","correlation_id":"FEAT-2026-0042","event_type":"spec_issue_resolved","source":"specs","source_version":"n/a","payload":{"original_issue_correlation_id":"FEAT-2026-0042/T09","affected_files":["product/specs/inventory-api-bookmarks.yaml"],"resolution_summary":"Added HTTP 201 response to POST /users/{user_id}/bookmarks for first-creation case; HTTP 200 retained for idempotent repeat. Fixes missing status code that caused generated controller to return 200 on all creations."}}
    ```
 
    Validated through `scripts/validate-event.py` with exit 0. Appended to `events/FEAT-2026-0042.jsonl`.
@@ -464,7 +485,7 @@ The spec is correct — `created_at` is required and properly typed. The generat
 2. **Emit `spec_issue_routed` event:**
 
    ```json
-   {"timestamp":"2026-04-25T15:10:00Z","correlation_id":"FEAT-2026-0042","event_type":"spec_issue_routed","source":"specs","source_version":"1.0.0","payload":{"original_issue_correlation_id":"FEAT-2026-0042/T12","target_project":"acme/specfuse-generator","filed_issue_reference":"acme/specfuse-generator#42"}}
+   {"timestamp":"2026-04-25T15:10:00Z","correlation_id":"FEAT-2026-0042","event_type":"spec_issue_routed","source":"specs","source_version":"n/a","payload":{"original_issue_correlation_id":"FEAT-2026-0042/T12","target_project":"acme/specfuse-generator","filed_issue_reference":"acme/specfuse-generator#42"}}
    ```
 
    Validated through `scripts/validate-event.py` with exit 0. Appended to `events/FEAT-2026-0042.jsonl`.
@@ -522,7 +543,8 @@ Both event types follow the standard event envelope schema at `event.schema.json
 ## Rules absorbed
 
 - `shared/rules/correlation-ids.md` — task-level and feature-level ID formats used in events and inbox files.
-- `shared/rules/verify-before-report.md` — four-step cycle, event-emission operational discipline (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern), corrective cycle limit.
+- `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
 - `shared/rules/never-touch.md` — path prohibition check on every write. In particular: generated directories are never edited (file a spec issue or generator issue instead), `/business/` is off-limits, `/product/test-plans/` belongs to the QA agent.
 - `shared/rules/escalation-protocol.md` — `spinning_detected` escalation after three consecutive failures; `spec_level_blocker` for ambiguous triage (case d).
 - `shared/rules/role-switch-hygiene.md` — re-read shared rules unconditionally at the start of every task.
@@ -575,6 +597,7 @@ Phase 4 does **not** introduce this loop. The v1.0 spec-issue-triage skill files
 - `/shared/schemas/event.schema.json` — event envelope schema.
 - `/shared/schemas/events/spec_issue_resolved.schema.json` — per-type schema for resolution events (authored in this WU).
 - `/shared/schemas/events/spec_issue_routed.schema.json` — per-type schema for routing events (authored in this WU).
-- `/shared/rules/verify-before-report.md` — re-read discipline and event-emission operational discipline.
+- `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
 - `/shared/rules/never-touch.md` — path prohibition.
 - `/shared/rules/escalation-protocol.md` — escalation for ambiguous triage (case d) and spinning detection.

@@ -27,6 +27,28 @@ The human says something like "run validation on INIT-2026-NNNN" or "validate th
 
 **Precondition.** A valid initiative registry entry must exist at `/features/INIT-YYYY-NNNN.md` with `state: drafting` (first-pass) or `state: validating` (re-validation after a failed pass). The `## Related specs` section must contain at least one spec file link — validation against zero files is a configuration error, not a pass. If the feature is in any state other than `drafting` or `validating`, the skill does not proceed — it informs the human and suggests the appropriate entry point.
 
+**Substrate precondition (authoring #26).** Before Step 1, and before any write,
+resolve every artifact this skill depends on: `scripts/validate-event.py`,
+`scripts/validate-frontmatter.py`, `event.schema.json`,
+`feature-frontmatter.schema.json`, and the rules under `shared/rules/`. None of
+these ship with the authoring plugin. They belong to the shared substrate
+contract, which is owned by the core `specfuse` plugin and has no distribution
+path to the authoring plane yet (`specfuse/specfuse#119`).
+
+If any is unresolvable, STOP and report:
+
+> This skill requires the shared substrate contract (`validate-event.py`,
+> `event.schema.json`, `shared/rules/`), which the authoring plugin does not
+> ship. See authoring issue #26 / specfuse#119. No spec was validated, no event
+> was emitted, and no state was transitioned.
+
+Do not improvise a replacement, skip the validation step, or read the artifacts
+out of a sibling `../orchestrator/` checkout. The sibling-checkout path is the
+dependency inversion #26 exists to remove, not a fallback.
+
+Stopping here costs a session. Stopping partway through costs a half-written
+artifact that looks finished — which is the failure this check exists to prevent.
+
 ## Inputs
 
 The skill reads, in order:
@@ -644,7 +666,8 @@ The event log at `/events/INIT-2026-0042.jsonl` contains four entries (plus the 
 ## Rules absorbed
 
 - `shared/rules/correlation-ids.md` — feature-level ID used in event envelopes and payloads.
-- `shared/rules/verify-before-report.md` — four-step cycle, event-emission operational discipline (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern), corrective cycle limit.
+- `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
 - `shared/rules/never-touch.md` — path prohibition check on every write.
 - `shared/rules/state-vocabulary.md` — `validating` and `planning` states, transition legality.
 - `shared/rules/escalation-protocol.md` — `spinning_detected` escalation after three consecutive validation failures.
@@ -684,7 +707,8 @@ The event log at `/events/INIT-2026-0042.jsonl` contains four entries (plus the 
 - `/shared/schemas/events/feature_state_changed.schema.json` — per-type schema for state transitions.
 - `/shared/schemas/events/spec_validated.schema.json` — per-type schema for validation results (authored in this WU).
 - `/shared/schemas/feature-frontmatter.schema.json` — frontmatter validation for registry state updates.
-- `/shared/rules/verify-before-report.md` — re-read discipline and event-emission operational discipline.
+- `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
 - `/shared/rules/never-touch.md` — path prohibition.
 - `/shared/rules/state-vocabulary.md` — feature state machine states and transitions.
 - `/shared/rules/escalation-protocol.md` — `spinning_detected` escalation.

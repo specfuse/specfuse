@@ -27,6 +27,30 @@ The human has completed initiative intake (a registry entry exists at `/features
 
 **Precondition.** A valid initiative registry entry must exist for the initiative being drafted. The skill reads the registry file and confirms `state: drafting` before proceeding. If the feature is in any other state, the skill does not proceed — it informs the human and suggests the appropriate entry point (initiative-intake for a missing initiative, spec-validation for an already-validated one).
 
+**Substrate precondition (authoring #26).** Before drafting, resolve
+`shared/templates/feature-registry.md`, `shared/rules/never-touch.md` and
+`shared/rules/escalation-protocol.md`. None of these ship with the authoring
+plugin — they belong to the shared substrate contract, owned by the core
+`specfuse` plugin, which has no distribution path to the authoring plane yet
+(`specfuse/specfuse#119`).
+
+`never-touch.md` is the reason this check is not optional: it is the path
+prohibition that keeps this skill out of `/business/` and
+`/product/test-plans/`. Drafting without it is writing without the boundary that
+constrains where. If any is unresolvable, STOP and report:
+
+> This skill requires the shared substrate contract
+> (`feature-registry.md`, `never-touch.md`, `escalation-protocol.md`), which the
+> authoring plugin does not ship. See authoring issue #26 / specfuse#119.
+> No files were created or modified.
+
+Do not improvise a replacement, skip the validation step, or read the artifacts
+out of a sibling `../orchestrator/` checkout. The sibling-checkout path is the
+dependency inversion #26 exists to remove, not a fallback.
+
+Stopping here costs a session. Stopping partway through costs a half-written
+artifact that looks finished — which is the failure this check exists to prevent.
+
 ## Inputs
 
 The skill reads, in order:
@@ -617,7 +641,8 @@ Phase 4 does **not** introduce these integrations. The v1.0 spec-drafting skill 
 - `/agents/qa/skills/qa-authoring/SKILL.md` — the downstream skill that consumes the acceptance criteria this skill produces; its `covers`, `commands`, and `expected` fields are the target shape.
 - `/shared/schemas/test-plan.schema.json` — the machine-readable contract for test plans; the acceptance criteria this skill produces must map onto the `tests[]` entries defined here.
 - `/shared/templates/feature-registry.md` — the template for initiative registry entries; this skill populates the body sections.
-- `/shared/rules/verify-before-report.md` — re-read discipline applied after every file write.
+- `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report. The re-read after every file write is this skill's local application of step 3.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
 - `/shared/rules/never-touch.md` — path prohibition; `/business/` and `/product/test-plans/` are off-limits for this skill.
 - `/shared/rules/escalation-protocol.md` — `spinning_detected` escalation on file-creation verification failures.
 - `/docs/walkthroughs/phase-3/retrospective.md` §F3.32 — the Phase 3 finding this skill's §"Scope and cardinality conventions" addresses.

@@ -36,6 +36,18 @@ Before acting on any task — including when switching into this role from anoth
 - `role-switch-hygiene.md` — re-read `/shared/rules/*` unconditionally at the start of every task, including at role-switches within a single session. Absorbs Phase 1 retrospective Finding 6.
 - `security-boundaries.md`
 
+> **Where these resolve from is unsettled (authoring #26 / specfuse#119).** Of
+> the set above, `correlation-ids.md`, `never-touch.md`, `role-switch-hygiene.md`
+> and `security-boundaries.md` exist in the core `specfuse` methodology, which is
+> the correct source for an authoring-plane role. `verify-before-report.md` does
+> **not** — core carries `verification-discipline.md` (the four-step cycle), and
+> the event-emission operational discipline this role depends on lives only in
+> the orchestrator's copy. The two are different documents, not a rename.
+>
+> Neither set has a distribution path into the authoring plane today. Skills that
+> write anything gate on this and stop rather than failing partway; see the
+> substrate precondition in each SKILL.md.
+
 The specs agent pulls the full set in unmodified. **No role-specific overrides are declared at v1.0.0** — every shared rule applies as written. If a walkthrough surfaces a case where this role genuinely needs to diverge from a shared rule, add a file under [`/agents/specs/rules/`](rules/) with explicit justification per the override procedure in the shared-rules `README.md` §"Revision". Until then, `/agents/specs/rules/` is intentionally empty.
 
 Machine contracts the agent round-trips against: `feature-frontmatter.schema.json` (feature registry entries), `event.schema.json`. Document shapes the agent produces or consumes: `feature-registry.md`, `spec-issue.md`, `human-escalation.md`.
