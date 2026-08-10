@@ -81,6 +81,13 @@ The component tools are subcommands:
 > about what ran. See
 > [`docs/plan-bundle-suite-distribution.md`](docs/plan-bundle-suite-distribution.md).
 
+`specfuse init` also provisions the core methodology contract — the rules and
+schemas in [`methodology/`](methodology/) — into `.specfuse/methodology/`, so
+agent skills resolve the shared contract from the repo they are working in rather
+than from a sibling checkout. These files are
+core's: `init`/`upgrade` overwrite them, and repo-local rules belong in
+`.specfuse/rules-local/`.
+
 `specfuse init` lays down `.specfuse/` (templates, rules, docs, `verification.yml`)
 and merge-safely wires `.claude/` (including this plugin's config) — pip-native
 scaffolding via `specfuse.loop.scaffold`, no `init.sh` checkout required. Every
