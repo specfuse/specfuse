@@ -7,8 +7,12 @@
 #
 # The umbrella IS the suite: specfuse-loop, specfuse-orchestrator and
 # specfuse-authoring are HARD dependencies, so the wheel is installed WITH deps and
-# all three resolve from PyPI. Publish order: components first, then specfuse — so
-# every floor is resolvable when this runs.
+# all three resolve from PyPI. Publish order is components first, then specfuse —
+# but that only guarantees their publish JOBS finished, NOT that pip can resolve
+# them: v0.9.2's build-test failed three minutes after a green component publish
+# and went green on an unchanged re-run (#111). The propagation gate below waits
+# for the floors instead of assuming; do not drop it back to an ordering
+# assumption.
 
 name: release
 
@@ -32,6 +36,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip build
           python -m build
+
+      # Separate step from the install on purpose: the log must distinguish
+      # "waiting for the index" from "the install failed". Folded into the
+      # install, a propagation lag surfaces as pip's "could not find a version
+      # that satisfies the requirement", which reads as a bad pin or a failed
+      # component release and invites the wrong fix. Floors come from
+      # pyproject, so this cannot drift from what the wheel actually requires.
+      - name: Wait for component floors to be resolvable on PyPI
+        run: python -m specfuse.await_pypi pyproject.toml
 
       - name: Install the built wheel (with deps) and run tests
         run: |
