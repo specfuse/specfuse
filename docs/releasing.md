@@ -127,6 +127,38 @@ floor is resolvable when the umbrella's release runs. Otherwise release whenever
 > the release — `uv tool install --refresh specfuse`. Worth knowing before you go
 > looking for a publishing bug.
 
+## The methodology substrate
+
+The umbrella ships `methodology/` and provisions it into a repo. `methodology/`
+stays canonical at the repo root — the orchestrator's ownership manifest names
+that exact path — and the in-tree build backend (`_build/backend.py`) mirrors it
+to `specfuse/_methodology/` at build time so a wheel can carry it. That mirror is
+gitignored: generated, never committed, so there is no second copy to edit by
+mistake.
+
+`specfuse init` / `upgrade` lay **`rules/` and `schemas/`** down in
+`.specfuse/methodology/`, which is **this** upgrader's slot. The wheel carries the
+whole substrate; only the machine contract is provisioned. The prose
+(`glossary.md`, `methodology.md`, `overview.md`) is held back because the loop
+scaffold ships its own diverged `.specfuse/docs/` versions — core is ahead on the
+roadmap status vocabulary, the loop is ahead on loop-surface detail — and laying
+core's beside them would put contradictory vocabulary in one repo. Tracked in
+#137; releasing it is a change to `PROVISIONED_SUBTREES`, not to packaging.
+
+`.specfuse/rules/` and `.specfuse/schemas/` belong to `loop-init`; the manifest's
+invariant is one writer per install path, and the separate `.specfuse/methodology/`
+slot is what keeps the two upgraders from fighting.
+
+Why it ships from core rather than from a component: follow-up #3 of
+`decision-authoring-execution-boundary.md` requires both planes to depend on core
+and neither to import the other. Shipping the substrate from the loop would
+relocate that dependency rather than remove it. Before this, `methodology/`
+shipped nowhere at all — consumers copied it out of git, which is how core's own
+event schema came to sit two releases behind the orchestrator's (#135).
+
+Provisioning **overwrites**. These files are core's; a local edit is drift by
+definition. Repo-local rules belong in the loop scaffold's `rules-local/`.
+
 ## The plugin track
 
 Fully automatic, and independent of the pip packages:
