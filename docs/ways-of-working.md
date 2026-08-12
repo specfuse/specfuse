@@ -12,6 +12,8 @@ This file owns two things and nothing else — the **cadence model** and the
 **failure modes**. Every command it names is documented elsewhere; it links
 rather than restates.
 
+- The end-to-end path, idea to merged code: [`product-lifecycle.md`](product-lifecycle.md)
+- The state machines and where each unit lives: [`unit-lifecycles.md`](unit-lifecycles.md)
 - Commands, by lifecycle phase: [loop `docs/skills.md`](https://github.com/specfuse/loop/blob/main/docs/skills.md)
 - A narrated end-to-end run: [loop `docs/getting-started.md`](https://github.com/specfuse/loop/blob/main/docs/getting-started.md)
 - The contracts underneath: [`methodology/methodology.md`](../methodology/methodology.md)
@@ -97,7 +99,8 @@ intends to do, and writes only on explicit go-ahead.
 
 On the authoring plane the equivalent per-initiative rhythm is capture → shape →
 mint → draft → validate → hand off, all run conversationally from the
-product-specs repo. See the
+product-specs repo. That path, stage by stage with the command for each, is
+[`product-lifecycle.md`](product-lifecycle.md); the boundary it crosses is the
 [authoring/execution boundary decision](https://github.com/specfuse/orchestrator/blob/main/docs/decision-authoring-execution-boundary.md).
 
 ## 5. Periodic — the routines teams skip
