@@ -178,6 +178,8 @@ front-end): [`methodology.md` §10](methodology.md).
 | [`methodology.md`](methodology.md) | The gate-cycle contract in full — the canonical source for everything above. |
 | [`glossary.md`](glossary.md) | Every unit defined once, plus lifecycle state machines and transition ownership. |
 | [`rules/`](rules/) | The enforceable rules: borrowed vocabularies, correlation IDs, never-touch, role-switch hygiene, security boundaries, verification discipline. |
+| [`docs/product-lifecycle.md`](../docs/product-lifecycle.md) | The end-to-end path: idea → initiative → specs → handoff → features → merged code, and the command at each step. |
+| [`docs/unit-lifecycles.md`](../docs/unit-lifecycles.md) | The state machines, drawn: every state of an idea, initiative, feature, gate, WU and task, plus where each record lives. |
 | [`docs/ways-of-working.md`](../docs/ways-of-working.md) | The operating manual: cadences, who does what, and the failure modes to watch for. |
 | [orchestrator vision](https://github.com/specfuse/orchestrator/blob/main/docs/orchestrator-vision.md) | Why the execution plane exists, what it isn't, and its five principles. |
 | [loop getting-started](https://github.com/specfuse/loop/blob/main/docs/getting-started.md) | A narrated first feature, end to end. |

@@ -44,6 +44,12 @@ Add `--plugins authoring,orchestrator` to enable those too.
 Hitting a platform bug, or migrating off the retired `specfuse[all]` extras? See
 [`docs/troubleshooting.md`](docs/troubleshooting.md), and run `specfuse doctor`.
 
+New to the method? Read [`methodology/overview.md`](methodology/overview.md) for
+orientation, then [`docs/product-lifecycle.md`](docs/product-lifecycle.md) for the
+path an idea takes to merged code and
+[`docs/unit-lifecycles.md`](docs/unit-lifecycles.md) for the state machines
+underneath it.
+
 ## The `specfuse` command
 
 One command, one name on PATH.
