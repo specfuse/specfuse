@@ -57,7 +57,7 @@ from specfuse.loop import scaffold
 
 from specfuse import methodology
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"
 
 MARKETPLACE = "specfuse/specfuse"
 PLUGIN = "specfuse@specfuse"
@@ -104,6 +104,8 @@ DELEGATED_COMMANDS: dict[str, tuple[str, str, str]] = {
                      "lint a monitoring config"),
     "stats": ("specfuse.loop.events_stats:main", "specfuse-stats",
               "event statistics for a repo's loop"),
+    "agent": ("specfuse.agent.run:main", "specfuse-agent",
+              "run the autonomous conductor over a whole repo"),
     "authoring": ("specfuse.authoring.cli:_run", "specfuse-authoring",
                   "the spec-authoring kit (design/validate/bundle)"),
     "pm": ("specfuse.orchestrator.cli:main", "specfuse-orchestrator",
@@ -148,7 +150,7 @@ def _delegate(target: str, argv: list[str], *, prog: str) -> int:
     """Run a component's console-script main with `argv`, as if it were invoked
     directly.
 
-    Nine of the eleven component mains take no arguments and read `sys.argv`
+    Nine of the twelve component mains take no arguments and read `sys.argv`
     themselves, so passing argv is not an option — sys.argv is swapped for the
     duration and restored in a finally. argv[0] is set to `prog` ("specfuse run")
     so the component's own --help and error messages name the way the user
@@ -180,7 +182,7 @@ def _delegate(target: str, argv: list[str], *, prog: str) -> int:
 def alias_main() -> int:
     """Entry point for every deprecated flat `specfuse-*` command.
 
-    One function serves all eleven: the invoked name comes from `sys.argv[0]`, so
+    One function serves all twelve: the invoked name comes from `sys.argv[0]`, so
     the console-script table stays a single line per command and cannot drift from
     DELEGATED_COMMANDS. Prints the replacement once per invocation (each is its own
     process), interactively only — see `_deprecation_notice_enabled`.
@@ -189,7 +191,7 @@ def alias_main() -> int:
     own console script under the same flat name, and inside a single venv the last
     distribution installed wins the file — measured, that is installer-dependent
     (pip/pipx left `specfuse-loop` and `specfuse-lint` pointing straight at the
-    driver; uv routed all eleven here). The command works identically either way,
+    driver; uv routed all of them here). The command works identically either way,
     only the notice is skipped, so `specfuse doctor` reports migration status
     deterministically instead of relying on this path being taken.
     """

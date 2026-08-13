@@ -20,7 +20,7 @@
 # unreleased component regression.
 #
 # It also makes this job the guard on the re-exported entry points: pyproject
-# names eleven modules this repo does not own, and
+# names twelve modules this repo does not own, and
 # tests/test_entry_points.py::test_every_target_imports_and_is_callable resolves
 # each one against the installed components. A component renaming a module would
 # otherwise ship a console script that ImportErrors at run time.

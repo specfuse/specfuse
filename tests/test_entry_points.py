@@ -74,7 +74,7 @@ class TestEntryPoints(unittest.TestCase):
                                 f"{target} is not a callable entry point")
 
     def test_every_delegated_target_imports_and_is_callable(self):
-        """The cost of dispatching into the components: cli.py names eleven
+        """The cost of dispatching into the components: cli.py names twelve
         modules this repo does not own, and the dispatch is a deferred import — so
         a component that renames one produces a broken subcommand at RUN time, in
         a release that was green. Resolve them all here instead."""
