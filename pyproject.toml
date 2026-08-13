@@ -10,7 +10,7 @@ backend-path = ["_build"]
 
 [project]
 name = "specfuse"
-version = "0.12.0"
+version = "0.12.1"
 description = "Specfuse — the whole script suite (driver, authoring kit, orchestrator) in one install, plus the init/upgrade bridge to the Claude Code plugin."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -47,14 +47,20 @@ classifiers = [
 # No conflict risk: specfuse-loop and specfuse-authoring have no third-party
 # runtime deps, and specfuse-orchestrator adds only jsonschema + pyyaml.
 #
-# specfuse-loop>=0.12.0: the `agent` subcommand delegates to
-# `specfuse.agent.run:main`, which first exists in 0.12.0 — under an older loop
-# the dispatch resolves to nothing and ImportErrors at run time, in a release
-# that was green. (The floor was 0.9.3 for the two earlier reasons, both still
-# true: the CLI's init/upgrade calls `specfuse.loop.scaffold`, added 0.3.0, and
-# it re-exports the monitor/stats mains that exist from 0.9.3.)
+# specfuse-loop>=0.12.1: this floor is load-bearing for CORRECTNESS, not just for
+# a callable symbol. `specfuse init` writes the loop's `.specfuse/schemas/` and
+# this package's `.specfuse/methodology/schemas/` into the same repo, and
+# `methodology.py` provisions the second one only because the two are
+# byte-identical. Loop <0.12.1 vendored the pre-#135 event schemas, so the pair
+# disagreed on which work-unit IDs are legal — `/T01H` and `/G1-CLOSE` valid in
+# one copy, rejected by the other, with the rule documenting them sitting
+# byte-identical beside both (specfuse/loop#1433).
+#
+# Earlier reasons, all still true: `agent` delegates to `specfuse.agent.run:main`
+# (first exists in 0.12.0); the CLI's init/upgrade calls `specfuse.loop.scaffold`
+# (0.3.0); it re-exports the monitor/stats mains (0.9.3).
 dependencies = [
-  "specfuse-loop>=0.12.0",
+  "specfuse-loop>=0.12.1",
   "specfuse-orchestrator>=0.4.1",
   "specfuse-authoring>=0.5.6",
 ]
