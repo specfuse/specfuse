@@ -10,7 +10,7 @@ backend-path = ["_build"]
 
 [project]
 name = "specfuse"
-version = "0.11.0"
+version = "0.12.0"
 description = "Specfuse — the whole script suite (driver, authoring kit, orchestrator) in one install, plus the init/upgrade bridge to the Claude Code plugin."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -47,10 +47,14 @@ classifiers = [
 # No conflict risk: specfuse-loop and specfuse-authoring have no third-party
 # runtime deps, and specfuse-orchestrator adds only jsonschema + pyyaml.
 #
-# specfuse-loop>=0.9.3: the CLI's init/upgrade calls `specfuse.loop.scaffold`
-# (added 0.3.0) and re-exports the monitor/stats mains that exist from 0.9.3.
+# specfuse-loop>=0.12.0: the `agent` subcommand delegates to
+# `specfuse.agent.run:main`, which first exists in 0.12.0 — under an older loop
+# the dispatch resolves to nothing and ImportErrors at run time, in a release
+# that was green. (The floor was 0.9.3 for the two earlier reasons, both still
+# true: the CLI's init/upgrade calls `specfuse.loop.scaffold`, added 0.3.0, and
+# it re-exports the monitor/stats mains that exist from 0.9.3.)
 dependencies = [
-  "specfuse-loop>=0.9.3",
+  "specfuse-loop>=0.12.0",
   "specfuse-orchestrator>=0.4.1",
   "specfuse-authoring>=0.5.6",
 ]
@@ -87,6 +91,12 @@ specfuse-lint = "specfuse.cli:alias_main"
 specfuse-monitor = "specfuse.cli:alias_main"
 specfuse-monitor-lint = "specfuse.cli:alias_main"
 specfuse-stats = "specfuse.cli:alias_main"
+# Born deprecated, deliberately: `specfuse-agent` is the loop's OWN console
+# script (new in loop 0.12.0), and pipx/uv expose only the main package's entry
+# points — so without this line the name loop's own docs use is simply absent
+# from a suite install. Declaring it keeps that invocation working and routes it
+# through the notice pointing at `specfuse agent`. Removed in 1.0.0 with the rest.
+specfuse-agent = "specfuse.cli:alias_main"
 specfuse-authoring = "specfuse.cli:alias_main"
 specfuse-orchestrator = "specfuse.cli:alias_main"
 specfuse-poller = "specfuse.cli:alias_main"

@@ -471,7 +471,7 @@ class TestDelegation(unittest.TestCase):
         sys.argv = self._orig_argv
 
     def _fake_component(self, rc=0, record=None):
-        """A stand-in component main. Nine of the eleven real ones take NO
+        """A stand-in component main. Nine of the twelve real ones take NO
         arguments and read sys.argv themselves, so the dispatcher has to swap
         sys.argv — this asserts it does."""
         def main():
@@ -551,7 +551,7 @@ class TestDelegation(unittest.TestCase):
 
 
 class TestAliases(unittest.TestCase):
-    """The deprecated flat `specfuse-*` commands. All eleven share one entry
+    """The deprecated flat `specfuse-*` commands. All twelve share one entry
     point, which recovers the invoked name from sys.argv[0]."""
 
     def setUp(self):
