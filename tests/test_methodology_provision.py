@@ -102,15 +102,20 @@ class TestProvisionedSubset(unittest.TestCase):
 
     # Provisioned files that currently differ from the loop scaffold's copy.
     #
-    # Held to a higher bar than "documented": each must be a case where core is
-    # RIGHT and the loop is stale, with the fix already filed — not an open
-    # editorial question. The prose is the opposite (both sides legitimate) and is
-    # withheld from provisioning entirely rather than waived here.
-    KNOWN_SCAFFOLD_DIVERGENCES = {
-        "schemas/event.schema.json",
-        "schemas/events/spec_issue_routed.schema.json",
-        "schemas/events/spec_issue_resolved.schema.json",
-    }
+    # EMPTY, and that is the intended steady state: every provisioned file is
+    # byte-identical to the loop's copy or absent from it, which is the premise
+    # `methodology.py` provisions on at all. It held three schemas from
+    # specfuse/loop#1433 — core adopted the widened correlation-ID patterns in
+    # #135 and the loop had not re-vendored, so a scaffolded repo carried two
+    # copies of one contract disagreeing on which work-unit IDs are legal. Loop
+    # 0.12.1 re-vendored; the floor in pyproject.toml is what keeps it true.
+    #
+    # Re-adding an entry is allowed but held to a higher bar than "documented":
+    # it must be a case where core is RIGHT and the loop is stale, with the fix
+    # already filed — not an open editorial question. The prose is the opposite
+    # (both sides legitimate) and is withheld from provisioning entirely rather
+    # than waived here.
+    KNOWN_SCAFFOLD_DIVERGENCES: set[str] = set()
 
     def _scaffold_seed(self) -> Path:
         try:
@@ -136,9 +141,9 @@ class TestProvisionedSubset(unittest.TestCase):
             + "\n  ".join(sorted(unexpected)))
 
     def test_no_scaffold_waiver_outlives_its_cause(self):
-        # Clears when specfuse/loop#1433 re-vendors and releases. Same discipline
-        # as test_substrate_drift: an exception that survives its condition is how
-        # the next divergence passes unnoticed.
+        # Vacuous while the waiver set is empty, and kept for the next time it is
+        # not. Same discipline as test_substrate_drift: an exception that survives
+        # its condition is how the next divergence passes unnoticed.
         stale = self.KNOWN_SCAFFOLD_DIVERGENCES - self._diverged_from_scaffold()
         self.assertEqual(
             set(), stale,

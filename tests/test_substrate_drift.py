@@ -59,16 +59,11 @@ CONSUMERS = (
 # A waiver is a debt, not a dispensation. Each one must name the direction and
 # what clears it, and `test_no_waiver_outlives_its_cause` deletes the excuse the
 # moment the files agree again.
-KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {
-    ("specfuse-loop", "event.schema.json"):
-        "Core moved ahead: adopted the orchestrator's widened correlation-ID "
-        "pattern. Clears when specfuse/loop re-vendors and releases — see "
-        "specfuse/loop#1433.",
-    ("specfuse-loop", "events/spec_issue_routed.schema.json"):
-        "Same widening as the envelope; clears with specfuse/loop#1433.",
-    ("specfuse-loop", "events/spec_issue_resolved.schema.json"):
-        "Same widening as the envelope; clears with specfuse/loop#1433.",
-}
+# EMPTY, and every consumer currently matches core byte for byte. The three
+# entries here waived specfuse-loop's pre-#135 event schemas while it caught up;
+# loop 0.12.1 re-vendored (specfuse/loop#1433) and the floor in pyproject.toml is
+# what keeps them from coming back.
+KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {}
 
 
 def _vendored_dir(import_name: str, subpath: str) -> Path | None:
