@@ -10,7 +10,7 @@ backend-path = ["_build"]
 
 [project]
 name = "specfuse"
-version = "0.12.1"
+version = "0.12.2"
 description = "Specfuse — the whole script suite (driver, authoring kit, orchestrator) in one install, plus the init/upgrade bridge to the Claude Code plugin."
 readme = "README.md"
 requires-python = ">=3.10"
