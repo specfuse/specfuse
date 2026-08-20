@@ -139,6 +139,32 @@ still happened; run the printed command yourself.
 Pass `--no-self-upgrade` to skip the package step entirely and only touch the
 repo's scaffold.
 
+## `specfuse init`/`upgrade` scaffolded the wrong component
+
+Before 0.12.2 both commands ran the driver's scaffold unconditionally, so
+pointing them at a spec-authoring repo or an orchestrator-substrate repo dropped a
+whole gate-cycle driver `.specfuse/` into it — templates, rules and a
+`verification.yml` for a loop that repo does not run.
+
+They now detect what the repo already has and overlay only that. Run
+`specfuse upgrade --dry-run` to see the verdict; the first line names it:
+
+```
+specfuse: detected authoring (the spec kit) in /path/to/repo.
+```
+
+If the verdict is wrong — a repo with no scaffold yet, or one whose layout
+predates the markers — name the components explicitly:
+
+```
+specfuse upgrade --components authoring,orchestrator
+```
+
+To clean up a repo that already received the unwanted driver scaffold: the loop's
+`.specfuse/.scaffold-manifest` lists every file that scaffold wrote, so it is the
+record of what to delete. Remove those paths plus `.specfuse/VERSION` and the
+manifest itself, then re-run `specfuse upgrade` and confirm the detection line.
+
 ## A command runs an old version after upgrading
 
 Run `specfuse doctor`. The usual cause is a shim owned by another venv — see the

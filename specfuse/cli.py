@@ -24,9 +24,14 @@ Own subcommands:
                          or owned by another install (--fix clears dead shims)
   specfuse --version     the umbrella version plus the resolved component table
 
-init/upgrade accept --dry-run (preview, writes nothing). The scaffolding itself
-lives in the driver package (`specfuse.loop.scaffold`, FEAT-2026-0026); this CLI
-is the thin user-facing bridge over it.
+init/upgrade accept --dry-run (preview, writes nothing). WHICH component scaffold
+they lay down is read from the target repo (`specfuse.components.detect`) rather
+than assumed: the loop's `.specfuse/`, the authoring kit's `.specfuse/authoring/`
+and the orchestrator's substrate are three separate overlays, and a repo gets the
+ones it already has. `--components` overrides the detection, and is how a fresh
+repo asks for anything other than the loop. The scaffolding itself lives in the
+component packages (`specfuse.loop.scaffold`, FEAT-2026-0026, and its two peers);
+this CLI is the thin user-facing bridge over them.
 
 Delegating subcommands (DELEGATED_COMMANDS): `specfuse run`, `lint`, `monitor`,
 `stats`, `authoring`, `pm`, … hand off to the component that implements them.
@@ -55,9 +60,9 @@ from typing import Callable
 
 from specfuse.loop import scaffold
 
-from specfuse import methodology
+from specfuse import components, methodology
 
-__version__ = "0.12.1"
+__version__ = "0.12.2"
 
 MARKETPLACE = "specfuse/specfuse"
 PLUGIN = "specfuse@specfuse"
@@ -857,6 +862,70 @@ def _provision_methodology(target: Path, *, dry_run: bool) -> list[str]:
     return written
 
 
+def _selected_components(args: argparse.Namespace, target: Path) -> tuple[list[str], str]:
+    """Which component scaffolds this run touches, plus a line explaining why.
+
+    Three sources, in precedence order:
+
+      1. `--components` — the user said so; nothing else gets a vote.
+      2. what the target repo already has — the whole point of this function.
+         An authoring repo gets the authoring kit refreshed and NOT a driver
+         scaffold it never asked for.
+      3. the loop, as the fresh-repo default. `specfuse init` on an empty repo
+         has nothing to read, and the driver is what that command has always
+         meant; `--components` is how a fresh repo asks for anything else.
+    """
+    chosen = getattr(args, "components", None)
+    if chosen:
+        return list(chosen), (
+            f"specfuse: components (from --components): {', '.join(chosen)}.")
+    found = components.detect(target)
+    if found:
+        return found, (
+            "specfuse: detected " + ", ".join(components.LABELS[n] for n in found)
+            + f" in {target}.")
+    return [components.LOOP], (
+        f"specfuse: no existing scaffold in {target} — installing the "
+        f"{components.LABELS[components.LOOP]}. Use --components to choose "
+        f"({', '.join(components.ORDER)}).")
+
+
+def _overlay_extra_components(target: Path, selected: list[str], *,
+                              dry_run: bool) -> int:
+    """Run the authoring and orchestrator overlays for whichever are selected.
+
+    The loop is handled by the callers, which own its version comparison and its
+    dry-run preview; these two report for themselves. Returns the first non-zero
+    exit code so a failed overlay is not swallowed, but only AFTER attempting
+    every selected component — a repo that runs two of them should not be left
+    half-upgraded because the first one refused.
+    """
+    rc = 0
+    if components.AUTHORING in selected:
+        rc = components.upgrade_authoring(target, dry_run=dry_run) or rc
+    if components.ORCHESTRATOR in selected:
+        rc = components.upgrade_orchestrator(
+            target, dry_run=dry_run,
+            sync_labels=not os.environ.get("SPECFUSE_NO_LABELS")) or rc
+    return rc
+
+
+def _plugins_for(args: argparse.Namespace, selected: list[str]) -> list[str]:
+    """The plugin names to assert in .claude/settings.json.
+
+    `--plugins` unioned with the selected components: a repo wired for the
+    authoring kit wants the authoring plugin's skills, and having to name it a
+    second time is a step the tool can take on its own. `loop` maps to the
+    `specfuse` plugin, which the scaffold already asserts — harmless to repeat.
+    """
+    names = list(getattr(args, "plugins", None) or [])
+    for name in selected:
+        key = "specfuse" if name == components.LOOP else name
+        if key in PLUGIN_KEYS and key not in names:
+            names.append(key)
+    return names
+
+
 def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
     """Scaffold a repo's .specfuse/ + .claude wiring — or upgrade it if a scaffold
     is already there.
@@ -865,6 +934,9 @@ def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
     the user to run `upgrade` instead, which made them answer a question the tool
     can answer itself by reading `.specfuse/VERSION`. `init` and `upgrade` are now
     the same command under two names, so neither is ever the wrong one to run.
+
+    WHICH scaffold it lays down is read from the repo, not assumed — see
+    `_selected_components`. Only the fresh-repo case defaults to the loop.
     """
     target = Path(args.target)
     if not target.is_dir():
@@ -876,30 +948,37 @@ def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
         return cmd_upgrade(args, runner=runner)
 
     ci_check = getattr(args, "ci_check", None)
-    plugins = getattr(args, "plugins", None) or []
+    selected, why = _selected_components(args, target)
+    print(why)
+    plugins = _plugins_for(args, selected)
+    dry_run = getattr(args, "dry_run", False)
 
-    if getattr(args, "dry_run", False):
-        # Preview without touching the target: scaffold into a throwaway dir and
-        # report the real written set.
-        with tempfile.TemporaryDirectory() as tmp:
-            written = scaffold.init(tmp, ci_check=ci_check)
-        print(f"specfuse: [dry-run] would scaffold {len(written)} file(s) under "
-              f"{target}/.specfuse/:")
-        for rel in written:
-            print(f"  .specfuse/{rel}")
+    if dry_run:
+        if components.LOOP in selected:
+            # Preview without touching the target: scaffold into a throwaway dir
+            # and report the real written set.
+            with tempfile.TemporaryDirectory() as tmp:
+                written = scaffold.init(tmp, ci_check=ci_check)
+            print(f"specfuse: [dry-run] would scaffold {len(written)} file(s) under "
+                  f"{target}/.specfuse/:")
+            for rel in written:
+                print(f"  .specfuse/{rel}")
+        _overlay_extra_components(target, selected, dry_run=True)
         _provision_methodology(target, dry_run=True)
         for name in plugins:
             print(f"  [dry-run] would enable plugin {PLUGIN_KEYS[name]}")
         return 0
 
-    written = scaffold.init(target, ci_check=ci_check)
-    print(f"specfuse: scaffolded {len(written)} file(s) under {target}/.specfuse/ "
-          f"(+ .claude wiring).")
+    if components.LOOP in selected:
+        written = scaffold.init(target, ci_check=ci_check)
+        print(f"specfuse: scaffolded {len(written)} file(s) under {target}/.specfuse/ "
+              f"(+ .claude wiring).")
+    rc = _overlay_extra_components(target, selected, dry_run=False)
     _provision_methodology(target, dry_run=False)
     for key in _enable_plugins(target, plugins, dry_run=False):
         print(f"specfuse: enabled plugin {key} in .claude/settings.json.")
     print(PLUGIN_UPDATE_HINT)
-    return 0
+    return rc
 
 
 def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
@@ -908,6 +987,12 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
 
     Scaffolds from scratch when there is nothing to overlay — `init` and `upgrade`
     are one idempotent operation under two names.
+
+    WHICH scaffolds get overlaid is read from the target repo. This used to run
+    the loop's upgrader unconditionally, so `specfuse upgrade` in an authoring
+    repo installed a gate-cycle driver scaffold beside the kit it was supposed to
+    refresh. A repo now gets exactly the components it already has — or the ones
+    `--components` names.
     """
     target = Path(args.target)
     if not target.is_dir():
@@ -917,54 +1002,64 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
         print(f"specfuse: {target}/.specfuse does not exist yet — scaffolding it.")
         return cmd_init(args, runner=runner)
     ci_check = getattr(args, "ci_check", None)
-    plugins = getattr(args, "plugins", None) or []
+    selected, why = _selected_components(args, target)
+    print(why)
+    plugins = _plugins_for(args, selected)
+    do_loop = components.LOOP in selected
     current, installed = _scaffold_is_current(target)
 
     if getattr(args, "dry_run", False):
-        if current:
+        if do_loop and current:
             print(f"specfuse: [dry-run] .specfuse/ is already at the latest "
                   f"scaffold version ({installed}); nothing to overlay.")
-            return 0
-        # Preview the overlay against a faithful copy of the target's .specfuse/;
-        # the target is never touched and no pip runs.
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_target = Path(tmp) / "repo"
-            tmp_target.mkdir()
-            src = target / ".specfuse"
-            if src.exists():
-                # symlinks=True copies links as links (don't follow); without it,
-                # a legacy init.sh scaffold's dangling .specfuse/skills/* symlinks
-                # make copytree raise on the missing targets. ignore_dangling_symlinks
-                # is belt-and-suspenders for the same case.
-                shutil.copytree(src, tmp_target / ".specfuse",
-                                symlinks=True, ignore_dangling_symlinks=True)
-            try:
-                written = scaffold.upgrade_specfuse(tmp_target, ci_check=ci_check)
-            except scaffold.ScaffoldDowngradeError as exc:
-                print(f"specfuse: [dry-run] {exc}", file=sys.stderr)
-                return 1
-        print(f"specfuse: [dry-run] would overlay {len(written)} file(s) onto "
-              f"{target}/.specfuse/ (no package upgrade in dry-run):")
-        for rel in written:
-            print(f"  .specfuse/{rel}")
+        elif do_loop:
+            # Preview the overlay against a faithful copy of the target's
+            # .specfuse/; the target is never touched and no pip runs.
+            with tempfile.TemporaryDirectory() as tmp:
+                tmp_target = Path(tmp) / "repo"
+                tmp_target.mkdir()
+                src = target / ".specfuse"
+                if src.exists():
+                    # symlinks=True copies links as links (don't follow); without
+                    # it, a legacy init.sh scaffold's dangling .specfuse/skills/*
+                    # symlinks make copytree raise on the missing targets.
+                    # ignore_dangling_symlinks is belt-and-suspenders for the same
+                    # case.
+                    shutil.copytree(src, tmp_target / ".specfuse",
+                                    symlinks=True, ignore_dangling_symlinks=True)
+                try:
+                    written = scaffold.upgrade_specfuse(tmp_target, ci_check=ci_check)
+                except scaffold.ScaffoldDowngradeError as exc:
+                    print(f"specfuse: [dry-run] {exc}", file=sys.stderr)
+                    return 1
+            print(f"specfuse: [dry-run] would overlay {len(written)} file(s) onto "
+                  f"{target}/.specfuse/ (no package upgrade in dry-run):")
+            for rel in written:
+                print(f"  .specfuse/{rel}")
+        # Not an early return when the loop is already current: the components
+        # release independently, so an up-to-date driver says nothing about
+        # whether the authoring kit or the substrate has moved.
+        _overlay_extra_components(target, selected, dry_run=True)
         _provision_methodology(target, dry_run=True)
         for key in _enable_plugins(target, plugins, dry_run=True):
             print(f"  [dry-run] would enable plugin {key}")
         return 0
 
-    # Overlay the scaffold BEFORE the pip-upgrade. The scaffold version is the one
-    # this CLI's installed specfuse-loop carries; pip then catches the env up.
-    try:
-        written = scaffold.upgrade_specfuse(target, ci_check=ci_check)
-    except scaffold.ScaffoldDowngradeError as exc:
-        print(f"specfuse: {exc}", file=sys.stderr)
-        return 1
-    if current:
-        print(f"specfuse: .specfuse/ already at the latest scaffold version "
-              f"({installed}); .claude wiring refreshed.")
-    else:
-        print(f"specfuse: overlaid {len(written)} versioned file(s) onto "
-              f"{target}/.specfuse/.")
+    # Overlay the scaffolds BEFORE the pip-upgrade. The scaffold version is the
+    # one this CLI's installed components carry; pip then catches the env up.
+    if do_loop:
+        try:
+            written = scaffold.upgrade_specfuse(target, ci_check=ci_check)
+        except scaffold.ScaffoldDowngradeError as exc:
+            print(f"specfuse: {exc}", file=sys.stderr)
+            return 1
+        if current:
+            print(f"specfuse: .specfuse/ already at the latest scaffold version "
+                  f"({installed}); .claude wiring refreshed.")
+        else:
+            print(f"specfuse: overlaid {len(written)} versioned file(s) onto "
+                  f"{target}/.specfuse/.")
+    overlay_rc = _overlay_extra_components(target, selected, dry_run=False)
     # Always, even when the loop scaffold was already current: the two move on
     # independent release cadences, so a repo whose scaffold has not changed can
     # still be behind on the substrate.
@@ -984,7 +1079,10 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
     # updated, the command on PATH still runs the other venv's copy.
     _warn_about_shims()
     print(PLUGIN_UPDATE_HINT)
-    return 0
+    # A component overlay that refused (a downgrade, missing kit content) is
+    # reported last so the pip step and the shim warning still ran — the exit
+    # code says something went wrong, the log says what.
+    return overlay_rc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1006,6 +1104,12 @@ def build_parser() -> argparse.ArgumentParser:
                             help="preview; write nothing, upgrade nothing")
         parser.add_argument("--ci-check", default=None,
                             help="path to a CI check script to delegate verification.yml to")
+        parser.add_argument("--components", default=None, type=_parse_components,
+                            metavar="NAME[,NAME]",
+                            help="which component scaffolds to install/overlay "
+                                 f"({', '.join(components.ORDER)}); default: "
+                                 "whatever the repo already has, or the loop on a "
+                                 "fresh one")
         parser.add_argument("--plugins", default=None, type=_parse_plugins,
                             metavar="NAME[,NAME]",
                             help="also enable these plugins in .claude/settings.json "
@@ -1047,6 +1151,22 @@ def build_parser() -> argparse.ArgumentParser:
                 _t, a.rest, prog=f"specfuse {_n}"))
 
     return ap
+
+
+def _parse_components(value: str) -> list[str]:
+    """`--components loop,authoring` -> ["loop", "authoring"], in install ORDER.
+
+    Normalised to ORDER rather than kept in the order typed: the loop's scaffold
+    owns the `.specfuse/` root the other two overlay into, so the sequence is a
+    property of the components, not of how the user listed them.
+    """
+    names = [part.strip() for part in value.split(",") if part.strip()]
+    unknown = [name for name in names if name not in components.ORDER]
+    if unknown:
+        raise argparse.ArgumentTypeError(
+            f"unknown component(s): {', '.join(unknown)}. "
+            f"Choose from: {', '.join(components.ORDER)}")
+    return [name for name in components.ORDER if name in names]
 
 
 def _parse_plugins(value: str) -> list[str]:

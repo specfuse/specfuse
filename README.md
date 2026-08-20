@@ -64,7 +64,35 @@ specfuse --version            # the umbrella version + every component's resolve
 
 `init` and `upgrade` are one idempotent operation under two names — neither is
 ever the wrong one to run — and `DIR` defaults to the current directory. Both take
-`--dry-run` (writes nothing), `--plugins`, and `--no-self-upgrade`.
+`--dry-run` (writes nothing), `--components`, `--plugins`, and
+`--no-self-upgrade`.
+
+### Which scaffold a repo gets
+
+The suite has three per-repo scaffolds, and `init`/`upgrade` **read the repo**
+rather than assuming:
+
+| Component | What it overlays | Recognised by |
+|---|---|---|
+| `loop` | the gate-cycle driver's `.specfuse/` (templates, rules, `verification.yml`) | `.specfuse/VERSION`, `.specfuse/templates/` |
+| `authoring` | the spec kit under `.specfuse/authoring/` + `scripts/` | `.specfuse/authoring/`, or `api/specs` + `<project>-project.json` |
+| `orchestrator` | the frozen multi-repo substrate (shared rules, issue templates, merge-watcher) | `.specfuse/templates.yaml`, `.specfuse/issue-templates/`, `.specfuse/agents/<kind>/` |
+
+A repo gets exactly the components it already has — an authoring repo running
+`specfuse upgrade` refreshes its kit and is **not** given a driver scaffold it
+never asked for. A repo can have several; they compose, because the ownership
+manifest gives every install path exactly one upgrader.
+
+A repo with none of them is a fresh one, and defaults to the driver. Override the
+detection with `--components`:
+
+```
+specfuse init --components authoring          # wire a specs repo for the kit
+specfuse upgrade --components loop,orchestrator
+```
+
+`SPECFUSE_NO_LABELS=1` skips the orchestrator overlay's `gh label create` calls —
+the only part of an upgrade that leaves the machine.
 
 The component tools are subcommands:
 
@@ -94,9 +122,10 @@ than from a sibling checkout. These files are
 core's: `init`/`upgrade` overwrite them, and repo-local rules belong in
 `.specfuse/rules-local/`.
 
-`specfuse init` lays down `.specfuse/` (templates, rules, docs, `verification.yml`)
-and merge-safely wires `.claude/` (including this plugin's config) — pip-native
-scaffolding via `specfuse.loop.scaffold`, no `init.sh` checkout required. Every
+On a driver repo, `specfuse init` lays down `.specfuse/` (templates, rules, docs,
+`verification.yml`) and merge-safely wires `.claude/` (including this plugin's
+config) — pip-native scaffolding via `specfuse.loop.scaffold`, no `init.sh`
+checkout required. Every
 `specfuse run` also self-provisions (version-syncs `.specfuse/` from the installed
 package), so an upgrade reaches existing projects on their next run.
 
