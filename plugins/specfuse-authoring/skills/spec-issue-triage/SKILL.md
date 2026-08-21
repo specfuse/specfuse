@@ -39,23 +39,50 @@ If any precondition fails, the skill does not proceed with triage — it comment
 
 **Legacy inbox path.** A filled template dropped into `/inbox/spec-issue/` still works: the same triage runs, reading the file instead of the issue body and archiving it to `/inbox/spec-issue/processed/` on completion (the original behavior). New issues should be filed via the producer (GitHub) path.
 
-**Substrate precondition (authoring #26).** Before triaging, and before any
-write, resolve `scripts/validate-event.py`, `event.schema.json`, the per-event
-schemas it composes with, and the rules under `shared/rules/`. None of these
-ship with the authoring plugin — they belong to the shared substrate contract,
-owned by the core `specfuse` plugin, which has no distribution path to the
-authoring plane yet (`specfuse/specfuse#119`).
+**Substrate precondition (authoring #26, repointed in #55).** Before triaging, and before any write, resolve every artifact this skill depends on.
 
-If any is unresolvable, STOP and report:
+**Prerequisite: `specfuse init .` has been run in this repo.** Core provisions
+the methodology substrate into `.specfuse/methodology/`, so the contracts below
+resolve from the repo you are working in. A sibling `../orchestrator/` checkout
+is not involved and is not a fallback — that path is the dependency inversion
+#26 exists to remove.
 
-> This skill requires the shared substrate contract (`validate-event.py`,
-> `event.schema.json`, `shared/rules/`), which the authoring plugin does not
-> ship. See authoring issue #26 / specfuse#119. No spec was changed, no event
-> was emitted, and no inbox file was archived.
+Resolving from `.specfuse/methodology/` once init has run:
+
+- `schemas/event.schema.json` — event envelope.
+- `schemas/events/spec_issue_resolved.schema.json`,
+  `schemas/events/spec_issue_routed.schema.json` — per-type payloads.
+- `rules/correlation-ids.md`, `rules/never-touch.md`,
+  `rules/role-switch-hygiene.md`.
+
+Available as **core CLI commands**, not as files to read — `specfuse init`
+installs the `specfuse` package that provides them:
+
+- `specfuse validate-event --file <path>` — validates the envelope AND the
+  per-type payload, including `spec_issue_resolved`, `spec_issue_routed` and
+  `human_escalation`. Verified against core 0.12.1 in a repo with only
+  `specfuse init` run; no orchestrator checkout involved.
+
+Use this rather than looking for `scripts/validate-event.py`. That path is how
+the orchestrator resolved the validator from its own checkout.
+
+Still shipped from nowhere the authoring plane can reach:
+
+- `shared/templates/spec-issue.md`, `shared/templates/human-escalation.md`.
+- `shared/rules/escalation-protocol.md`, `shared/rules/verify-before-report.md`.
+
+If anything above is unresolvable, STOP and report:
+
+> This skill requires substrate the authoring plugin does not ship. If
+> `.specfuse/methodology/` is absent, run `specfuse init .` and retry. If what is
+> missing is the `spec-issue` / `human-escalation` template,
+> `escalation-protocol.md` or `verify-before-report.md`, core does not ship it to
+> this plane yet — see authoring #26 / #55. If a `specfuse validate-*` command is
+> missing, the core package is not installed, which `specfuse init` also fixes.
+> No spec was changed, no event was emitted, and no inbox file was archived.
 
 Do not improvise a replacement, skip the validation step, or read the artifacts
-out of a sibling `../orchestrator/` checkout. The sibling-checkout path is the
-dependency inversion #26 exists to remove, not a fallback.
+out of a sibling `../orchestrator/` checkout.
 
 Stopping here costs a session. Stopping partway through costs a half-written
 artifact that looks finished — which is the failure this check exists to prevent.
@@ -65,7 +92,7 @@ artifact that looks finished — which is the failure this check exists to preve
 The skill reads, in order:
 
 1. The GitHub issue body (via `gh issue view <N> --repo <specs> --json number,title,body,labels,url`) — its four sections provide the observation, the file locations where the issue surfaces, the triggering task's correlation ID, and the filing actor's suggested resolution. (Legacy: the inbox file under `/inbox/spec-issue/`.)
-2. This skill file and the specs agent role config — reloaded per `/shared/rules/role-switch-hygiene.md`.
+2. This skill file and the specs agent role config — reloaded per `.specfuse/methodology/rules/role-switch-hygiene.md`.
 3. The file(s) named in the `## Location` section — read to determine whether the issue surfaces in a spec file under `/product/`, a generated file under `_generated/` (or equivalent generated directory), or both.
 4. The relevant spec file(s) under `/product/` — even when the issue names a generated file, the skill reads the upstream spec to determine whether the generated output's problem traces back to a spec-content error (case c in the triage decision tree).
 5. The feature's event log at `/events/FEAT-YYYY-NNNN.jsonl` — read to confirm the original `spec_issue_raised` event exists and to avoid duplicate resolution/routing events.
@@ -535,19 +562,19 @@ Both event types follow the standard event envelope schema at `event.schema.json
 
 ## Schemas consumed
 
-- `shared/schemas/event.schema.json` — event envelope validation.
-- `shared/schemas/events/spec_issue_resolved.schema.json` — per-type payload validation for resolution events (authored in this WU).
-- `shared/schemas/events/spec_issue_routed.schema.json` — per-type payload validation for routing events (authored in this WU).
+- `.specfuse/methodology/schemas/event.schema.json` — event envelope validation.
+- `.specfuse/methodology/schemas/events/spec_issue_resolved.schema.json` — per-type payload validation for resolution events (authored in this WU).
+- `.specfuse/methodology/schemas/events/spec_issue_routed.schema.json` — per-type payload validation for routing events (authored in this WU).
 - `shared/schemas/events/human_escalation.schema.json` — per-type payload validation for escalation events (case d).
 
 ## Rules absorbed
 
-- `shared/rules/correlation-ids.md` — task-level and feature-level ID formats used in events and inbox files.
+- `.specfuse/methodology/rules/correlation-ids.md` — task-level and feature-level ID formats used in events and inbox files.
 - `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report.
-- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
-- `shared/rules/never-touch.md` — path prohibition check on every write. In particular: generated directories are never edited (file a spec issue or generator issue instead), `/business/` is off-limits, `/product/test-plans/` belongs to the QA agent.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. `specfuse/specfuse#119` closed as completed without placing this content anywhere the authoring plane can reach, and its own closing comment still lists "authoring-surface expression of the report step" as an open decision — so this citation currently has no owner upstream. See authoring #26 / #55.
+- `.specfuse/methodology/rules/never-touch.md` — path prohibition check on every write. In particular: generated directories are never edited (file a spec issue or generator issue instead), `/business/` is off-limits, `/product/test-plans/` belongs to the QA agent.
 - `shared/rules/escalation-protocol.md` — `spinning_detected` escalation after three consecutive failures; `spec_level_blocker` for ambiguous triage (case d).
-- `shared/rules/role-switch-hygiene.md` — re-read shared rules unconditionally at the start of every task.
+- `.specfuse/methodology/rules/role-switch-hygiene.md` — re-read shared rules unconditionally at the start of every task.
 
 ## Anti-patterns
 
@@ -594,10 +621,10 @@ Phase 4 does **not** introduce this loop. The v1.0 spec-issue-triage skill files
 - `/agents/component/skills/escalation/SKILL.md` — the component agent's spec-issue filing behavior (the incoming contract for this skill).
 - `/shared/templates/spec-issue.md` — the template downstream agents use to file spec issues (the inbox file format).
 - `/shared/templates/human-escalation.md` — the template for case (d) escalations.
-- `/shared/schemas/event.schema.json` — event envelope schema.
-- `/shared/schemas/events/spec_issue_resolved.schema.json` — per-type schema for resolution events (authored in this WU).
-- `/shared/schemas/events/spec_issue_routed.schema.json` — per-type schema for routing events (authored in this WU).
+- `.specfuse/methodology/schemas/event.schema.json` — event envelope schema.
+- `.specfuse/methodology/schemas/events/spec_issue_resolved.schema.json` — per-type schema for resolution events (authored in this WU).
+- `.specfuse/methodology/schemas/events/spec_issue_routed.schema.json` — per-type schema for routing events (authored in this WU).
 - `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report.
-- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
-- `/shared/rules/never-touch.md` — path prohibition.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. `specfuse/specfuse#119` closed as completed without placing this content anywhere the authoring plane can reach, and its own closing comment still lists "authoring-surface expression of the report step" as an open decision — so this citation currently has no owner upstream. See authoring #26 / #55.
+- `.specfuse/methodology/rules/never-touch.md` — path prohibition.
 - `/shared/rules/escalation-protocol.md` — escalation for ambiguous triage (case d) and spinning detection.
