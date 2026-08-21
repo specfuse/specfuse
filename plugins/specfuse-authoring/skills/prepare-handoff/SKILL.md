@@ -16,7 +16,7 @@ Produce a feature handoff manifest at `api/docs/handoffs/<correlation-id>.md` pe
 
 1. `../orchestrator/project/specs-handoff-contract.md` — authoritative section list, formats, freshness rules.
 2. `../orchestrator/project/coordination-conventions.md` — §2 operation classification, §7 async classification, §10 direction-of-reference rule.
-3. `../orchestrator/shared/rules/correlation-ids.md` — minting rules, per-year-resetting numbering.
+3. `.specfuse/methodology/rules/correlation-ids.md` — minting rules, per-year-resetting numbering.
 4. `../orchestrator/shared/templates/feature-registry.md` — registry-entry template.
 5. `../orchestrator/shared/schemas/feature-frontmatter.schema.json` — registry-entry frontmatter schema.
 6. The input/output contract of the `handoff-composer` subagent (provided by the specfuse-authoring plugin) — you will delegate manifest composition to it.

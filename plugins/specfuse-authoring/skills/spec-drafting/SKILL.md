@@ -27,26 +27,37 @@ The human has completed initiative intake (a registry entry exists at `/features
 
 **Precondition.** A valid initiative registry entry must exist for the initiative being drafted. The skill reads the registry file and confirms `state: drafting` before proceeding. If the feature is in any other state, the skill does not proceed — it informs the human and suggests the appropriate entry point (initiative-intake for a missing initiative, spec-validation for an already-validated one).
 
-**Substrate precondition (authoring #26).** Before drafting, resolve
-`shared/templates/feature-registry.md`, `shared/rules/never-touch.md` and
-`shared/rules/escalation-protocol.md`. None of these ship with the authoring
-plugin — they belong to the shared substrate contract, owned by the core
-`specfuse` plugin, which has no distribution path to the authoring plane yet
-(`specfuse/specfuse#119`).
+**Substrate precondition (authoring #26, repointed in #55).** Before drafting, resolve every artifact this skill depends on.
 
-`never-touch.md` is the reason this check is not optional: it is the path
-prohibition that keeps this skill out of `/business/` and
-`/product/test-plans/`. Drafting without it is writing without the boundary that
-constrains where. If any is unresolvable, STOP and report:
+**Prerequisite: `specfuse init .` has been run in this repo.** Core provisions
+the methodology substrate into `.specfuse/methodology/`, so the contracts below
+resolve from the repo you are working in. A sibling `../orchestrator/` checkout
+is not involved and is not a fallback — that path is the dependency inversion
+#26 exists to remove.
 
-> This skill requires the shared substrate contract
-> (`feature-registry.md`, `never-touch.md`, `escalation-protocol.md`), which the
-> authoring plugin does not ship. See authoring issue #26 / specfuse#119.
-> No files were created or modified.
+Resolving from `.specfuse/methodology/` once init has run:
+
+- `rules/never-touch.md` — the path prohibition that keeps this skill out of
+  `/business/` and `/product/test-plans/`. This one is why the check is not
+  optional: drafting without it is writing without the boundary that constrains
+  where.
+
+Still shipped from nowhere the authoring plane can reach:
+
+- `shared/templates/feature-registry.md`.
+- `shared/schemas/test-plan.schema.json`.
+- `shared/rules/escalation-protocol.md`, `shared/rules/verify-before-report.md`.
+
+If anything above is unresolvable, STOP and report:
+
+> This skill requires substrate the authoring plugin does not ship. If
+> `.specfuse/methodology/` is absent, run `specfuse init .` and retry. If what is
+> missing is `feature-registry.md`, `test-plan.schema.json`,
+> `escalation-protocol.md` or `verify-before-report.md`, core does not ship it to
+> this plane yet — see authoring #26 / #55. No files were created or modified.
 
 Do not improvise a replacement, skip the validation step, or read the artifacts
-out of a sibling `../orchestrator/` checkout. The sibling-checkout path is the
-dependency inversion #26 exists to remove, not a fallback.
+out of a sibling `../orchestrator/` checkout.
 
 Stopping here costs a session. Stopping partway through costs a half-written
 artifact that looks finished — which is the failure this check exists to prevent.
@@ -56,7 +67,7 @@ artifact that looks finished — which is the failure this check exists to preve
 The skill reads, in order:
 
 1. The initiative registry entry at `/features/INIT-YYYY-NNNN.md` — its frontmatter (`correlation_id`, `state`, `involved_repos`, `autonomy_default`) and its body (placeholder sections from initiative-intake or partially-drafted content from a prior session).
-2. This skill file and the specs agent role config — reloaded per `/shared/rules/role-switch-hygiene.md`.
+2. This skill file and the specs agent role config — reloaded per `.specfuse/methodology/rules/role-switch-hygiene.md`.
 3. Any existing spec files under `/product/` in the product specs repo that the human references or that `## Related specs` already points to (for continuation sessions where drafting resumes on a partially-authored spec).
 4. The `test-plan.schema.json` contract — not to author test plans (that is qa-authoring's concern), but to understand the shape acceptance criteria must map onto: `test_id`, `covers`, `commands`, `expected`.
 
@@ -642,7 +653,7 @@ Phase 4 does **not** introduce these integrations. The v1.0 spec-drafting skill 
 - `/shared/schemas/test-plan.schema.json` — the machine-readable contract for test plans; the acceptance criteria this skill produces must map onto the `tests[]` entries defined here.
 - `/shared/templates/feature-registry.md` — the template for initiative registry entries; this skill populates the body sections.
 - `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report. The re-read after every file write is this skill's local application of step 3.
-- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
-- `/shared/rules/never-touch.md` — path prohibition; `/business/` and `/product/test-plans/` are off-limits for this skill.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. `specfuse/specfuse#119` closed as completed without placing this content anywhere the authoring plane can reach, and its own closing comment still lists "authoring-surface expression of the report step" as an open decision — so this citation currently has no owner upstream. See authoring #26 / #55.
+- `.specfuse/methodology/rules/never-touch.md` — path prohibition; `/business/` and `/product/test-plans/` are off-limits for this skill.
 - `/shared/rules/escalation-protocol.md` — `spinning_detected` escalation on file-creation verification failures.
 - `/docs/walkthroughs/phase-3/retrospective.md` §F3.32 — the Phase 3 finding this skill's §"Scope and cardinality conventions" addresses.
