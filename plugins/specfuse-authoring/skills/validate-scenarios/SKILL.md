@@ -22,13 +22,13 @@ Execute sequentially. Stop if a step produces errors (warnings are OK to continu
 
 2. **Run Spectral lint.** Execute:
    ```bash
-   ./scripts/validate-arazzo-spectral.sh
+   ./scripts/specfuse/validate-arazzo-spectral.sh
    ```
    This runs the 24-rule Specfuse Arazzo Spectral ruleset (`api/spectral.specfuse-arazzo.yaml`) against all discovered files. Target: zero errors (warnings are OK).
 
 3. **Run structural validation.** Execute:
    ```bash
-   ./scripts/validate-arazzo.sh
+   ./scripts/specfuse/validate-arazzo.sh
    ```
    This runs the 14-check structural + cross-spec validator covering operationId resolution, event name resolution, recipe chain validation, file organization, and granularity checks. Target: zero errors.
 

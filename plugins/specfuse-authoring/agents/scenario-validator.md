@@ -74,7 +74,7 @@ spectral lint {file} --ruleset api/spectral.specfuse-arazzo.yaml --format stylis
 
 Or for all files:
 ```bash
-./scripts/validate-arazzo-spectral.sh
+./scripts/specfuse/validate-arazzo-spectral.sh
 ```
 
 **On failure:** Parse the Spectral output. Each line contains: file path, line number, severity (error/warning), message, and rule name. Map each to the classification table below.
@@ -87,7 +87,7 @@ Run the cross-spec structural validator that checks operationId resolution, even
 
 **How to run:**
 ```bash
-./scripts/validate-arazzo.sh
+./scripts/specfuse/validate-arazzo.sh
 ```
 
 **Output format:** The script outputs lines in `CHECK_ID|STATUS|MESSAGE` format, with detail lines prefixed by `DETAIL|`. Parse this structured output directly.

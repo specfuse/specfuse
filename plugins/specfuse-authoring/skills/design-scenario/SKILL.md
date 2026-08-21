@@ -202,8 +202,8 @@ After the architect produces the YAML, write it to a temporary location and dele
 Spawn the `scenario-validator` subagent (provided by the specfuse-authoring plugin), which:
 1. Applies its validation pipeline and report format
 2. Runs the validation pipeline against the generated file:
-   - `./scripts/validate-arazzo-spectral.sh` (Spectral lint)
-   - `./scripts/validate-arazzo.sh` (structural + cross-spec checks)
+   - `./scripts/specfuse/validate-arazzo-spectral.sh` (Spectral lint)
+   - `./scripts/specfuse/validate-arazzo.sh` (structural + cross-spec checks)
 3. Returns a structured validation report
 
 Process the report:

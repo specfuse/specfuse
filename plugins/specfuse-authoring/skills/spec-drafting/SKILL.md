@@ -296,7 +296,7 @@ error that names the spec.
    `x-entity`, `specfuse-xvalueobject-shape` for `x-value-object`, and the
    equivalents in the async and Arazzo rulesets. If the key is absent, the
    ruleset edit belongs in the same change as the spec edit.
-3. Run `./scripts/check-extension-vocabulary.py`. It compares each closed guard
+3. Run `./scripts/specfuse/check-extension-vocabulary.py`. It compares each closed guard
    against the pinned generator's vocabulary and names exactly which keys the
    generator knows and the ruleset rejects. A clean run is what makes "the key
    is supported" checkable rather than remembered.

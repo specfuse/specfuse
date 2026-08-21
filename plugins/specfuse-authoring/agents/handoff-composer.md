@@ -53,7 +53,7 @@ The `/prepare-handoff` command MUST provide the following context. Missing requi
 | `openIssues` | List of `{repo, number, title, assignee, summary}` for `spec_level_blocker` issues whose body cites at least one path in `scopePaths`. Empty list when none. |
 | `validationResults` | Structured PASS/FAIL block: `{layer1: PASS|FAIL, tierARegen: PASS|FAIL, bundleRegen: PASS|FAIL, sourceCommitForBundle}`. Layer 1 covers `/validate-scenarios`, `/validate-async`. Bundle regen is "regenerated as a step", not "checked". |
 | `tierBHint` | List of project-config group names whose destinations overlap the touched code-generation surfaces. Read live from the project config file (e.g., `<project>-project.json`) -- producer treats it as advisory. |
-| `promptIndex` | Output of `scripts/build-prompt-index.sh` -- a `{specPath: [{file, relevance, phase, status, audience}]}` map. The composer filters this by `scopePaths` to populate §10. |
+| `promptIndex` | Output of `scripts/specfuse/build-prompt-index.sh` -- a `{specPath: [{file, relevance, phase, status, audience}]}` map. The composer filters this by `scopePaths` to populate §10. |
 
 ### Optional inputs
 

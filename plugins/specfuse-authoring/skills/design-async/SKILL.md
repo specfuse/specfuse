@@ -128,8 +128,8 @@ Snapshots live in `domains/{domain}/events/{Entity}Snapshot.yaml` — one per ev
 
 Run the full async validation:
 ```bash
-./scripts/validate-async-structure.sh
-./scripts/validate-async-spectral.sh
+./scripts/specfuse/validate-async-structure.sh
+./scripts/specfuse/validate-async-spectral.sh
 ```
 
 Fix any errors before presenting the result.

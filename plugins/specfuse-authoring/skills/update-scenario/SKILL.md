@@ -278,8 +278,8 @@ After every change (or batch of changes), validate the updated file.
 
 1. Write the modified file to disk.
 2. Spawn the `scenario-validator` subagent (provided by the specfuse-authoring plugin) to run validation, following its pipeline:
-   - `./scripts/validate-arazzo-spectral.sh` (Spectral lint)
-   - `./scripts/validate-arazzo.sh` (structural + cross-spec checks)
+   - `./scripts/specfuse/validate-arazzo-spectral.sh` (Spectral lint)
+   - `./scripts/specfuse/validate-arazzo.sh` (structural + cross-spec checks)
 3. Process the validation report:
    - **Auto-fix mechanical issues silently**: casing fixes, missing defaults, ISO duration format.
    - **Surface judgment calls**: unresolved references, granularity alerts, cross-spec contradictions.

@@ -14,11 +14,11 @@ Run the complete validation suite for the project's AsyncAPI specifications. Exe
 
 ## Steps
 
-1. **Bundle the async specs** — Run `./scripts/bundle-async-spec.sh api/specs/v1/asyncapi.yaml output/asyncapi-bundled.yaml` to produce the bundled file that downstream validators require.
+1. **Bundle the async specs** — Run `./scripts/specfuse/bundle-async-spec.sh api/specs/v1/asyncapi.yaml output/asyncapi-bundled.yaml` to produce the bundled file that downstream validators require.
 
-2. **Validate async file structure** — Run `./scripts/validate-async-structure.sh` to ensure domain-based organization (main spec uses only $ref, correct file naming conventions, cross-references to OpenAPI models resolve).
+2. **Validate async file structure** — Run `./scripts/specfuse/validate-async-structure.sh` to ensure domain-based organization (main spec uses only $ref, correct file naming conventions, cross-references to OpenAPI models resolve).
 
-3. **Run AsyncAPI Spectral lint** — Run `./scripts/validate-async-spectral.sh` to validate Specfuse AsyncAPI-specific rules (channel conventions, message categories, worker metadata, saga rules, delivery guarantees). Target: zero errors (warnings are OK).
+3. **Run AsyncAPI Spectral lint** — Run `./scripts/specfuse/validate-async-spectral.sh` to validate Specfuse AsyncAPI-specific rules (channel conventions, message categories, worker metadata, saga rules, delivery guarantees). Target: zero errors (warnings are OK).
 
 ## On failure
 

@@ -166,7 +166,7 @@ notification), **automatically**:
 2. Check if the generated files in this project have been updated.
 3. **If the generated files were updated** and match the expected
    output:
-   - Regenerate docs if applicable: `./scripts/generate-scenario-docs.sh`
+   - Regenerate docs if applicable: `./scripts/specfuse/generate-scenario-docs.sh`
    - Compare output against expected — check the specific symptom
      described in the issue.
    - If fix is correct: add a verification comment and close:
