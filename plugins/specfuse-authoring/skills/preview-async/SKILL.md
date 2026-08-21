@@ -14,7 +14,7 @@ Launch the AsyncAPI documentation preview server for live viewing of the async s
 
 ## Steps
 
-1. **Start the preview server** — Run `./scripts/serve-async-docs.sh` in the background using `run_in_background: true`. The server starts on port 8082 by default.
+1. **Start the preview server** — Run `./scripts/specfuse/serve-async-docs.sh` in the background using `run_in_background: true`. The server starts on port 8082 by default.
 
 2. **Confirm it's running** — After a few seconds, check the output to verify the server started successfully.
 

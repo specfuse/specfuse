@@ -25,7 +25,7 @@ Artifact groups are declared in the project config; generate the ones the projec
 1. **Generate backend (C#)** — Run `specfuse authoring generate --group "<backend group>" <project>-project.json`
 2. **Generate frontend (Flutter)** — Run `specfuse authoring generate --group "<frontend group>" <project>-project.json`
 3. **Generate workers (C#)** — If `asyncSpecifications` is defined in the project config, run `specfuse authoring generate --group "<workers group>" <project>-project.json`
-4. **Generate documentation (Markdown)** — Run `./scripts/generate-scenario-docs.sh`. It bundles the specs, then calls the CLI for both markdown artifact groups defined in the project config:
+4. **Generate documentation (Markdown)** — Run `./scripts/specfuse/generate-scenario-docs.sh`. It bundles the specs, then calls the CLI for both markdown artifact groups defined in the project config:
    - `Documentation - Scenarios` → `scenarioDocument`, `scenarioIndex` (output: `./api/docs`)
    - `Documentation - Technical References` → `recipeDocumentation`, `entityDiagram`, `eventCatalog`, `channelTopology`, `docsIndex` (output: `./docs/generated`)
 

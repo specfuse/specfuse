@@ -14,7 +14,7 @@ Launch the Redocly documentation preview server for live viewing of the API spec
 
 ## Steps
 
-1. **Start the preview server** — Run `./scripts/serve-docs.sh` in the background using `run_in_background: true`. The server starts on port 8081 by default.
+1. **Start the preview server** — Run `./scripts/specfuse/serve-docs.sh` in the background using `run_in_background: true`. The server starts on port 8081 by default.
 
 2. **Confirm it's running** — After a few seconds, check the output to verify the server started successfully. Look for the "Preview URL" line.
 

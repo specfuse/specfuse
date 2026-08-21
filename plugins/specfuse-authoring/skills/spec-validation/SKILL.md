@@ -338,7 +338,7 @@ The skill translates raw validator errors into actionable remediation. For each 
 | `unknown spec format` | The validator cannot determine whether the file is OpenAPI, AsyncAPI, or Arazzo. | Ensure the file has the correct top-level discriminator: `openapi: "3.x.x"` for OpenAPI, `asyncapi: "2.x.x"` or `asyncapi: "3.x.x"` for AsyncAPI, `arazzo: "1.0"` for Arazzo. |
 | `missing channel` or `missing channels` | An AsyncAPI document is missing the `channels` section. | Add a `channels` object with at least one channel definition. Each channel must have a name and at least one operation (publish/subscribe). |
 | `invalid sourceDescription reference` | An Arazzo workflow references a `sourceDescription` that does not exist in the document's `sourceDescriptions` array. | Check the `sourceDescriptions` array at the top level of the Arazzo document. Add the missing entry, ensuring the `name` matches what the workflow step references and the `url` points to a valid OpenAPI or AsyncAPI document. |
-| `must NOT have additional properties` on an `x-*` block | A vendor extension carries a key the repo's Spectral ruleset does not list. Read this as a **ruleset gap before a spec error**: the guard is a closed schema over a vocabulary the generator owns, so a key the generator added and the ruleset never learned about produces exactly this message, pointing at the spec. | Check the key against `Vendor_Extensions.md` first. If the handbook documents it, the ruleset is behind — run `./scripts/check-extension-vocabulary.py` to confirm, then add the key to the guard's schema in the same change that adopts it. Only if the handbook does not document it is this a spec typo. |
+| `must NOT have additional properties` on an `x-*` block | A vendor extension carries a key the repo's Spectral ruleset does not list. Read this as a **ruleset gap before a spec error**: the guard is a closed schema over a vocabulary the generator owns, so a key the generator added and the ruleset never learned about produces exactly this message, pointing at the spec. | Check the key against `Vendor_Extensions.md` first. If the handbook documents it, the ruleset is behind — run `./scripts/specfuse/check-extension-vocabulary.py` to confirm, then add the key to the guard's schema in the same change that adopts it. Only if the handbook does not document it is this a spec typo. |
 | `acceptance criterion .* not testable` | A feature narrative's acceptance criterion does not map to a testable behavior — it is too vague, describes multiple behaviors, or lacks an observable outcome. | Rewrite the criterion to describe a single, observable behavior. Each criterion should answer: "What input triggers this behavior? What observable outcome does it produce?" See the spec-drafting skill's §"Writing acceptance criteria that the QA agent can consume" for examples. |
 
 **Errors not in the table.** For any error whose message does not match a pattern in the table above, the skill presents the raw error with:
@@ -369,7 +369,7 @@ be adopted at all, and the failure names the spec instead of the ruleset.
 clean lint.** Before reporting a Spectral pass as evidence, confirm the repo has
 one:
 
-1. `./scripts/check-extension-vocabulary.py` exists and is invoked by the
+1. `./scripts/specfuse/check-extension-vocabulary.py` exists and is invoked by the
    Spectral runner (the kit wires it into `validate-spectral.sh`).
 2. Its most recent run did not skip. A skip is loud but still a skip — with no
    cached generator jar, nothing was verified. CI should pass `--require-jar`.

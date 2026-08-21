@@ -213,8 +213,8 @@ Add under the correct domain section:
 ### Step 7: Validate
 
 ```bash
-./scripts/validate-async-structure.sh
-./scripts/validate-async-spectral.sh
+./scripts/specfuse/validate-async-structure.sh
+./scripts/specfuse/validate-async-spectral.sh
 ```
 
 Fix any errors before presenting the result.
