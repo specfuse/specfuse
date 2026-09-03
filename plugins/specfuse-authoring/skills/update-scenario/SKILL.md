@@ -149,7 +149,7 @@ Add, remove, rename, or change the role of actors.
 - What to change: add a new actor, remove an existing one, rename an actor key, or change a role.
 
 **Apply -- add actor:**
-1. Confirm the actor key (camelCase), role (from the project's closed role enum defined in the OpenAPI common enums file, typically `common/enums.yaml`), description, and optional `ref` binding to a recipe output.
+1. Confirm the actor key (camelCase), role (registered in the OpenAPI `info.x-roles` registry), description, and optional `ref` binding to a recipe output.
 2. Add to `x-actors`.
 3. If the setup recipe does not provide an output for the new actor's `ref`, flag:
 
@@ -169,7 +169,7 @@ Add, remove, rename, or change the role of actors.
 3. Update any `x-actors.{oldKey}.ref` cross-references.
 
 **Apply -- change role:**
-1. Verify the new role is in the project's closed role enum.
+1. Verify the new role is registered in the OpenAPI `info.x-roles`.
 2. Update `x-actors.{key}.role`.
 3. Consider whether the role change affects authorization -- a step that worked for a manager-class role might not work for a customer-class role. Warn:
 

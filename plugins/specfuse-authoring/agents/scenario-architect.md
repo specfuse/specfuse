@@ -38,7 +38,7 @@ The `/design-scenario` command MUST provide the following context when spawning 
 |---|---|
 | `domain` | Target domain — a kebab-case domain name from the project's active domain list (defined in the project's overlay) or `cross-domain` |
 | `intent` | PM's plain-language description of the use case |
-| `actors` | List of actors with keys, roles (from the project's closed role enum defined in the OpenAPI common enums file, typically `common/enums.yaml`), and descriptions |
+| `actors` | List of actors with keys, roles (registered in the OpenAPI `info.x-roles` registry), and descriptions |
 | `steps` | Ordered list of step descriptions with: action description, actor key, expected outcome |
 | `operationIdInventory` | All operationIds from the target domain's OpenAPI operations, plus any cross-domain operationIds the command identified as relevant |
 | `eventInventory` | All `{Entity}.{Action}` event names from the target domain's AsyncAPI messages, plus any cross-domain events the command identified |
@@ -78,7 +78,7 @@ Every `{Entity}.{Action}` in `x-async.emit` or `x-async.await` MUST exist in the
 
 ### HC-3: Never invent actor roles
 
-Every actor's `role` MUST be from the project's closed role enum (defined in the OpenAPI common enums file, typically `common/enums.yaml`).
+Every actor's `role` MUST be registered in the OpenAPI `info.x-roles` registry (see `Vendor_Extensions.md` §3.1). A `Role` schema enum is not the registry and validates nothing.
 
 A common convention is to include an `Authenticated` role for pre-business-role flows (signup, invitation acceptance) — but this is project-defined; do not assume it exists unless the project's enum declares it.
 

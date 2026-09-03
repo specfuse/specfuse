@@ -81,7 +81,7 @@ Highlight which operations and events seem relevant to the use case described in
 
 ### Step 4: Confirm actors
 
-Based on the use case, propose actors from the project's closed role enum (defined in the OpenAPI common enums file, typically `common/enums.yaml`).
+Based on the use case, propose actors whose roles are registered in the OpenAPI `info.x-roles` registry.
 
 Many projects include an `Authenticated` role for pre-business-role flows (signup, invitation acceptance) — check whether the project's enum declares it before using it. The other roles vary by project.
 
