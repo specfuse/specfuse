@@ -133,6 +133,11 @@ highest-leverage first:**
   replacement? Cross-feature ordering or dependencies on planned items?
 - **QA** — what makes this hard to verify? Boundary cases that trip the
   gates? Anything needing a real environment the gates can't provide?
+  Which acceptance criteria need something the loop cannot reach itself
+  (prod, a live cluster, a consumer repo, an operator's confirmation)?
+  For each: does it move to a post-merge checklist item, or does the WU
+  it belongs to become `human_only: true` before close (see
+  `lint_ac_observable`, FEAT-2026-0084/T03)?
 - **Reviewer** — the scary part of the change; where the agent needs
   the tightest acceptance criteria to stay honest.
 - **Operator** — how does this ship and roll back? Migration,
@@ -141,6 +146,30 @@ highest-leverage first:**
 Also cover, once, the universal framing trio: the **roadmap_goal** (one
 sentence), **autonomy** (`auto` / `review` / `supervised`), and the
 **scope boundary** (what's explicitly OUT).
+
+**The autonomy decision — recommend `auto` (FEAT-2026-0100).** This is a
+decision question, so present it in the shape below, and make the
+recommendation `auto` unless this feature gives a concrete reason to
+tighten. The reason `auto` wins by default is the judge: on a terminal
+gate the verdict that advances the feature is written by a fresh session
+that sees only evidence — the definition of done, the per-criterion
+state, the gate's diff, and the close's measurements — never the close's
+own retrospective, and it can lower a verdict but never raise one. That
+is what makes an auto-armed close trustworthy; without it, `auto` let
+the session that did the work grade the work. Say so in the
+recommendation line rather than asserting `auto` bare. Recommend
+`review` instead when a wrong arm is expensive to undo, or when the
+feature edits the loop's own driver (the `judge_editing` stop class will
+veto the arm anyway, so `review` just makes that honest up front).
+
+**Ask about `judge_disabled` only when a criterion needs it.** Do not put
+it in the interview by default. Raise it as a question only when one of
+this feature's acceptance criteria genuinely cannot be judged from that
+evidence bundle — and when it comes up, the first move is to fix the
+criterion, not the flag: a criterion a judge cannot evaluate from
+evidence is usually one that should become a `type: human` WU before the
+close, or a post-merge checklist line. `judge_disabled: true` in
+`PLAN.md` frontmatter is the last resort, and it needs a recorded reason.
 
 **Two kinds of question — ask them differently. This is the crux of the
 interview.**
@@ -187,7 +216,7 @@ against files).
 
 Before sketching the gate count, tally planned substantive WUs (types
 `implementation`, `qa_authoring`, `qa_execution`, `qa_curation`).
-When **planned substantive WU count ≤ 4**, draft a **single gate** with a
+When **planned substantive WU count ≤ 8**, draft a **single gate** with a
 **single terminal close** WU (type `close`) — no `close-intermediate`, no `plan-next`.
 The canonical threshold is stated in `docs/methodology.md §6 "Ceremony
 proportionality"` (one fact, one home); reference it, do not redefine it.
