@@ -25,28 +25,55 @@ When this file and `orchestrator-architecture.md` disagree, **the architecture w
 
 ## Shared substrate
 
-Before acting on any task — including when switching into this role from another in the same session — read the full shared rule set under `/shared/rules/` and treat every file there as load-bearing context:
+Before acting on any task — including when switching into this role from another
+in the same session — read the full shared rule set and treat every file there as
+load-bearing context.
+
+**Prerequisite: run `specfuse init .` in the specs repo.** The core `specfuse`
+package provisions the methodology substrate into `.specfuse/methodology/`. No
+sibling checkout of the orchestrator is involved, and none is a fallback.
+
+Resolving from `.specfuse/methodology/rules/`:
 
 - `correlation-ids.md`
-- `state-vocabulary.md`
 - `never-touch.md`
+- `role-switch-hygiene.md` — re-read `.specfuse/methodology/rules/*`
+  unconditionally at the start of every task, including at role-switches within a
+  single session. Absorbs Phase 1 retrospective Finding 6.
+- `security-boundaries.md`
+- `borrowed-vocabularies.md`
+- `verification-discipline.md` — the four-step cycle: state intent, act, verify,
+  report.
+
+In core but **held back from provisioning**, so not reachable yet:
+
+- `state-vocabulary.md` — the shared lifecycle spine (`drafting → validating →
+  planning → …` and its transition owners) is canonical in core's
+  `methodology/glossary.md` §"Lifecycle states". Core provisions `rules/` and
+  `schemas/` only; the prose is held back because the loop scaffold ships a
+  diverged `glossary.md`, tracked as `specfuse/specfuse#137`.
+
+Shipped from nowhere the authoring plane can reach:
+
 - `override-registry.md`
 - `escalation-protocol.md`
 - `verify-before-report.md`
-- `role-switch-hygiene.md` — re-read `/shared/rules/*` unconditionally at the start of every task, including at role-switches within a single session. Absorbs Phase 1 retrospective Finding 6.
-- `security-boundaries.md`
 
-> **Where these resolve from is unsettled (authoring #26 / specfuse#119).** Of
-> the set above, `correlation-ids.md`, `never-touch.md`, `role-switch-hygiene.md`
-> and `security-boundaries.md` exist in the core `specfuse` methodology, which is
-> the correct source for an authoring-plane role. `verify-before-report.md` does
-> **not** — core carries `verification-discipline.md` (the four-step cycle), and
-> the event-emission operational discipline this role depends on lives only in
-> the orchestrator's copy. The two are different documents, not a rename.
+> **What changed, and what did not (authoring #26 / #55).** `specfuse/specfuse#136`
+> ships `methodology/` in the umbrella and provisions `rules/` and `schemas/` into
+> a repo, which closed decision follow-up #3 (`specfuse/specfuse#119`) for the six
+> rules above. That is the dependency direction the decision required: both planes
+> depend on core, neither imports the other.
 >
-> Neither set has a distribution path into the authoring plane today. Skills that
-> write anything gate on this and stop rather than failing partway; see the
-> substrate precondition in each SKILL.md.
+> The three rules in the last group are not late copies of anything core ships. In
+> particular `verify-before-report.md` is **not** a rename of
+> `verification-discipline.md` — core carries the four-step cycle, and the
+> event-emission operational discipline this role depends on (`--file
+> /tmp/event.json`, the JSONL single-line requirement, the safe-append pattern)
+> exists only in the orchestrator's copy. Two documents, not one renamed.
+>
+> Skills that write anything still gate on the unresolved set and stop rather than
+> failing partway; see the substrate precondition in each SKILL.md.
 
 The specs agent pulls the full set in unmodified. **No role-specific overrides are declared at v1.0.0** — every shared rule applies as written. If a walkthrough surfaces a case where this role genuinely needs to diverge from a shared rule, add a file under [`/agents/specs/rules/`](rules/) with explicit justification per the override procedure in the shared-rules `README.md` §"Revision". Until then, `/agents/specs/rules/` is intentionally empty.
 

@@ -99,7 +99,7 @@ Verify that all required extensions are present and well-formed.
 | `sourceDescriptions` | Yes | At least one entry; URL resolves relative to file location |
 | `x-version` | Yes | `current` (integer >= 1) + `status` (draft/stable/deprecated) |
 | `x-domain` | Yes | A valid project domain or `cross-domain` |
-| `x-actors` | Yes | At least one actor; each has `role` from the project's closed role enum |
+| `x-actors` | Yes | At least one actor; each has `role` registered in the OpenAPI `info.x-roles` |
 | `x-doc` | Yes | At minimum `summary` present |
 | `x-mcp` | Yes | `exposed` explicitly set |
 | `x-setup` | Recommended | `recipe` field present when fixtures are needed |

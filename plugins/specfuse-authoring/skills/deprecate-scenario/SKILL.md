@@ -72,7 +72,7 @@ If ambiguous, list matching files and ask the user to pick.
 
 7. **Validate.** Run validation to confirm the deprecated file is still valid YAML with correct extension shapes:
    ```bash
-   ./scripts/validate-arazzo-spectral.sh
+   ./scripts/specfuse/validate-arazzo-spectral.sh
    ```
 
 8. **Report.** Summarize what was changed:

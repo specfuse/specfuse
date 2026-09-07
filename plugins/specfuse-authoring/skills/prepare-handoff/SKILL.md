@@ -16,7 +16,7 @@ Produce a feature handoff manifest at `api/docs/handoffs/<correlation-id>.md` pe
 
 1. `../orchestrator/project/specs-handoff-contract.md` — authoritative section list, formats, freshness rules.
 2. `../orchestrator/project/coordination-conventions.md` — §2 operation classification, §7 async classification, §10 direction-of-reference rule.
-3. `../orchestrator/shared/rules/correlation-ids.md` — minting rules, per-year-resetting numbering.
+3. `.specfuse/methodology/rules/correlation-ids.md` — minting rules, per-year-resetting numbering.
 4. `../orchestrator/shared/templates/feature-registry.md` — registry-entry template.
 5. `../orchestrator/shared/schemas/feature-frontmatter.schema.json` — registry-entry frontmatter schema.
 6. The input/output contract of the `handoff-composer` subagent (provided by the specfuse-authoring plugin) — you will delegate manifest composition to it.
@@ -86,13 +86,13 @@ Run sequentially. **Stop at the first FAIL** and surface to the user — the con
 
 | Step | Command | Captures |
 |---|---|---|
-| 3a | `./scripts/validate-spectral.sh` | OpenAPI Spectral lint |
-| 3b | `./scripts/validate-specs.sh` | SpecFuse structural validator |
-| 3c | `./scripts/validate-redocly.sh` | Redocly validation |
-| 3d | `./scripts/validate-async-spectral.sh` | AsyncAPI Spectral |
-| 3e | `./scripts/validate-async-structure.sh` | AsyncAPI structural |
-| 3f | `./scripts/validate-arazzo-spectral.sh` | Arazzo Spectral |
-| 3g | `./scripts/validate-arazzo.sh` | Arazzo structural + cross-spec |
+| 3a | `./scripts/specfuse/validate-spectral.sh` | OpenAPI Spectral lint |
+| 3b | `./scripts/specfuse/validate-specs.sh` | SpecFuse structural validator |
+| 3c | `./scripts/specfuse/validate-redocly.sh` | Redocly validation |
+| 3d | `./scripts/specfuse/validate-async-spectral.sh` | AsyncAPI Spectral |
+| 3e | `./scripts/specfuse/validate-async-structure.sh` | AsyncAPI structural |
+| 3f | `./scripts/specfuse/validate-arazzo-spectral.sh` | Arazzo Spectral |
+| 3g | `./scripts/specfuse/validate-arazzo.sh` | Arazzo structural + cross-spec |
 
 Aggregate result → `validationResults.layer1 = PASS|FAIL`. On FAIL, print failing rule + file location and STOP.
 
@@ -113,8 +113,8 @@ Set `validationResults.tierARegen = PASS` after all scenario docs are current. O
 
 Run unconditionally:
 
-- `./scripts/bundle-spec.sh api/specs/v1/openapi.yaml output/openapi-bundled.yaml`
-- `./scripts/bundle-async-spec.sh api/specs/v1/asyncapi.yaml output/asyncapi-bundled.yaml`
+- `./scripts/specfuse/bundle-spec.sh api/specs/v1/openapi.yaml output/openapi-bundled.yaml`
+- `./scripts/specfuse/bundle-async-spec.sh api/specs/v1/asyncapi.yaml output/asyncapi-bundled.yaml`
 
 Set `validationResults.bundleRegen = PASS` and capture `sourceCommitForBundle` from `git rev-parse --short HEAD` AFTER staging the regenerated bundles (Step 12 captures the final commit reference).
 
@@ -176,7 +176,7 @@ The narrow walk is intentional: contract §6 means "operations / events / entiti
 
 ### Step 8: Build prompt index
 
-Run `./scripts/build-prompt-index.sh`. Capture stdout (JSON map) and stderr (warnings).
+Run `./scripts/specfuse/build-prompt-index.sh`. Capture stdout (JSON map) and stderr (warnings).
 
 Filter the index to the subset of keys present in `scopePaths`. This becomes `promptIndex` for the composer.
 

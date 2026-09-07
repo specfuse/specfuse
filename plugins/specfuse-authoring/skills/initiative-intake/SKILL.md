@@ -29,26 +29,65 @@ file is wrong.** Raise an escalation rather than reconciling silently.
 The human opens a Claude Code session and says they want to start a new initiative. There is no
 structured-event trigger — this is a session-driven, conversational entry point.
 
-**Substrate precondition (authoring #26).** Before minting anything, resolve
-`scripts/validate-frontmatter.py`, `scripts/validate-event.py`,
-`feature-frontmatter.schema.json`, `event.schema.json`,
-`shared/templates/feature-registry.md`, and the rules under `shared/rules/`.
-None of these ship with the authoring plugin — they belong to the shared
-substrate contract, owned by the core `specfuse` plugin, which has no
-distribution path to the authoring plane yet (`specfuse/specfuse#119`).
+**Substrate precondition (authoring #26, repointed in #55).** Before minting anything, resolve every artifact this skill depends on. An `INIT-` id is minted from the registry and is not reusable, so this check runs **before** the mint, not before the write.
 
-An `INIT-` id is minted from the registry and is not reusable, so this check runs
-**before** the mint, not before the write. If any artifact is unresolvable, STOP
-and report:
+**Prerequisite: `specfuse init .` has been run in this repo.** Core provisions
+the methodology substrate into `.specfuse/methodology/`, so the contracts below
+resolve from the repo you are working in. A sibling `../orchestrator/` checkout
+is not involved and is not a fallback — that path is the dependency inversion
+#26 exists to remove.
 
-> This skill requires the shared substrate contract (`validate-frontmatter.py`,
-> `feature-frontmatter.schema.json`, `feature-registry.md`), which the authoring
-> plugin does not ship. See authoring issue #26 / specfuse#119. No id was
-> minted, no registry entry was written, and no event was emitted.
+Resolving from `.specfuse/methodology/` once init has run:
+
+- `schemas/event.schema.json` — event envelope.
+- `schemas/events/initiative_created.schema.json` — per-type payload.
+- `rules/correlation-ids.md`, `rules/never-touch.md`.
+
+Available as **core CLI commands**, not as files to read — `specfuse init`
+installs the `specfuse` package that provides them:
+
+- `specfuse validate-frontmatter --file <path>` — validates the minted registry
+  entry against `feature-frontmatter.schema.json`. `INIT-` correlation IDs are
+  accepted, and `feature_graph` is the branch discriminator the schema requires.
+- `specfuse validate-event --file <path>` — validates the envelope AND the
+  `initiative_created` payload.
+
+Both verified against core 0.12.1 in a repo with only `specfuse init` run. Use
+them rather than looking for `scripts/validate-frontmatter.py` or
+`scripts/validate-event.py`; those paths are how the orchestrator resolved the
+validators from its own checkout.
+
+Still shipped from nowhere the authoring plane can reach:
+
+- `shared/templates/feature-registry.md`.
+- `shared/rules/escalation-protocol.md`, `shared/rules/verify-before-report.md`.
+- `feature-frontmatter.schema.json` **as a readable file** — validation against
+  it works (above), reading it does not; `specfuse/orchestrator#87`. This skill
+  only validates, so it is not blocked.
+
+In core but **held back from provisioning**, so still unreachable today:
+
+- The state vocabulary. Core carries the shared lifecycle spine — the
+  `drafting → validating → planning → …` states and their transition owners — in
+  `methodology/glossary.md` §"Lifecycle states", which is canonical and is what
+  the `shared/rules/state-vocabulary.md` citations in this file need. Core's
+  provisioner lays down `rules/` and `schemas/` only and holds the prose back
+  because the loop scaffold ships a diverged `glossary.md`; that editorial
+  decision is `specfuse/specfuse#137`. Repointing these citations is a
+  one-line change here once it lands.
+
+If anything above is unresolvable, STOP and report:
+
+> This skill requires substrate the authoring plugin does not ship. If
+> `.specfuse/methodology/` is absent, run `specfuse init .` and retry. If what is
+> missing is `feature-registry.md`, `escalation-protocol.md`,
+> `verify-before-report.md` or the state vocabulary, core does not ship it to
+> this plane yet — see authoring #26 / #55. If a `specfuse validate-*` command is
+> missing, the core package is not installed, which `specfuse init` also fixes.
+> No id was minted, no registry entry was written, and no event was emitted.
 
 Do not improvise a replacement, skip the validation step, or read the artifacts
-out of a sibling `../orchestrator/` checkout. The sibling-checkout path is the
-dependency inversion #26 exists to remove, not a fallback.
+out of a sibling `../orchestrator/` checkout.
 
 Stopping here costs a session. Stopping partway through costs a half-written
 artifact that looks finished — which is the failure this check exists to prevent.
@@ -235,15 +274,15 @@ features after `planning`.
 ## Schemas consumed
 
 - `shared/schemas/feature-frontmatter.schema.json` — frontmatter validation (accepts `INIT-` + `feature_graph`).
-- `shared/schemas/event.schema.json` — event envelope validation.
-- `shared/schemas/events/initiative_created.schema.json` — per-type payload validation.
+- `.specfuse/methodology/schemas/event.schema.json` — event envelope validation.
+- `.specfuse/methodology/schemas/events/initiative_created.schema.json` — per-type payload validation.
 
 ## Rules absorbed
 
-- `shared/rules/correlation-ids.md` — ID format, minting, uniqueness; the `INIT-`/`FEAT-` root distinction (docs/naming-convention.md).
+- `.specfuse/methodology/rules/correlation-ids.md` — ID format, minting, uniqueness; the `INIT-`/`FEAT-` root distinction (docs/naming-convention.md).
 - `verification-discipline.md` (core `specfuse` methodology) — the four-step cycle: state intent, act, verify, report.
-- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. See authoring #26 / specfuse#119.
-- `shared/rules/never-touch.md` — path prohibition check on every write.
+- `shared/rules/verify-before-report.md` (orchestrator plane) — the surface-specific report shape built on top of it, plus §"Event-emission operational discipline" (timestamps at emission time, canonical `--file /tmp/event.json` invocation, JSONL single-line requirement, safe append pattern) and the corrective-cycle limit. **Not a renamed copy of the core rule** — the emission half exists only here, so it is a real cross-plane dependency, not a reference update. `specfuse/specfuse#119` closed as completed without placing this content anywhere the authoring plane can reach, and its own closing comment still lists "authoring-surface expression of the report step" as an open decision — so this citation currently has no owner upstream. See authoring #26 / #55.
+- `.specfuse/methodology/rules/never-touch.md` — path prohibition check on every write.
 - `shared/rules/state-vocabulary.md` — `drafting` is the initial state; no transition during intake.
 - `shared/rules/escalation-protocol.md` — `spinning_detected` after three consecutive validation failures.
 

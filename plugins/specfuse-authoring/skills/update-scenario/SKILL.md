@@ -149,7 +149,7 @@ Add, remove, rename, or change the role of actors.
 - What to change: add a new actor, remove an existing one, rename an actor key, or change a role.
 
 **Apply -- add actor:**
-1. Confirm the actor key (camelCase), role (from the project's closed role enum defined in the OpenAPI common enums file, typically `common/enums.yaml`), description, and optional `ref` binding to a recipe output.
+1. Confirm the actor key (camelCase), role (registered in the OpenAPI `info.x-roles` registry), description, and optional `ref` binding to a recipe output.
 2. Add to `x-actors`.
 3. If the setup recipe does not provide an output for the new actor's `ref`, flag:
 
@@ -169,7 +169,7 @@ Add, remove, rename, or change the role of actors.
 3. Update any `x-actors.{oldKey}.ref` cross-references.
 
 **Apply -- change role:**
-1. Verify the new role is in the project's closed role enum.
+1. Verify the new role is registered in the OpenAPI `info.x-roles`.
 2. Update `x-actors.{key}.role`.
 3. Consider whether the role change affects authorization -- a step that worked for a manager-class role might not work for a customer-class role. Warn:
 
@@ -278,8 +278,8 @@ After every change (or batch of changes), validate the updated file.
 
 1. Write the modified file to disk.
 2. Spawn the `scenario-validator` subagent (provided by the specfuse-authoring plugin) to run validation, following its pipeline:
-   - `./scripts/validate-arazzo-spectral.sh` (Spectral lint)
-   - `./scripts/validate-arazzo.sh` (structural + cross-spec checks)
+   - `./scripts/specfuse/validate-arazzo-spectral.sh` (Spectral lint)
+   - `./scripts/specfuse/validate-arazzo.sh` (structural + cross-spec checks)
 3. Process the validation report:
    - **Auto-fix mechanical issues silently**: casing fixes, missing defaults, ISO duration format.
    - **Surface judgment calls**: unresolved references, granularity alerts, cross-spec contradictions.

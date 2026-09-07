@@ -81,7 +81,7 @@ Highlight which operations and events seem relevant to the use case described in
 
 ### Step 4: Confirm actors
 
-Based on the use case, propose actors from the project's closed role enum (defined in the OpenAPI common enums file, typically `common/enums.yaml`).
+Based on the use case, propose actors whose roles are registered in the OpenAPI `info.x-roles` registry.
 
 Many projects include an `Authenticated` role for pre-business-role flows (signup, invitation acceptance) — check whether the project's enum declares it before using it. The other roles vary by project.
 
@@ -202,8 +202,8 @@ After the architect produces the YAML, write it to a temporary location and dele
 Spawn the `scenario-validator` subagent (provided by the specfuse-authoring plugin), which:
 1. Applies its validation pipeline and report format
 2. Runs the validation pipeline against the generated file:
-   - `./scripts/validate-arazzo-spectral.sh` (Spectral lint)
-   - `./scripts/validate-arazzo.sh` (structural + cross-spec checks)
+   - `./scripts/specfuse/validate-arazzo-spectral.sh` (Spectral lint)
+   - `./scripts/specfuse/validate-arazzo.sh` (structural + cross-spec checks)
 3. Returns a structured validation report
 
 Process the report:

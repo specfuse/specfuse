@@ -177,8 +177,8 @@ The output contract is the recipe's public API. Scenarios reference these via `$
 3. Write the file to disk.
 
 4. Spawn the `scenario-validator` subagent (provided by the specfuse-authoring plugin) to validate, following its pipeline:
-   - `./scripts/validate-arazzo-spectral.sh` (Spectral lint)
-   - `./scripts/validate-arazzo.sh` (structural + cross-spec checks)
+   - `./scripts/specfuse/validate-arazzo-spectral.sh` (Spectral lint)
+   - `./scripts/specfuse/validate-arazzo.sh` (structural + cross-spec checks)
 
 5. Process the validation report:
    - Auto-fix mechanical issues (missing defaults, casing).
