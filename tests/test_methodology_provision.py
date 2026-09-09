@@ -115,6 +115,28 @@ class TestProvisionedSubset(unittest.TestCase):
     # already filed — not an open editorial question. The prose is the opposite
     # (both sides legitimate) and is withheld from provisioning entirely rather
     # than waived here.
+    #
+    # WHICH SIDE IS CANONICAL: this one. Core owns `methodology/`; the loop
+    # VENDORS it (specfuse/loop#130, "vendor shared substrate from methodology
+    # core; drop cross-repo path dep") and each vendored file says so in its own
+    # text — "This rule is core substrate." A divergence therefore means one of
+    # two things, and they are not symmetric:
+    #
+    #   * the loop has not re-vendored a core change yet — the #135 case above,
+    #     the one this waiver set exists for;
+    #   * the loop EDITED its vendored copy — not a stale copy but a downstream
+    #     write to an upstream contract. Never waive that one. The edit is
+    #     back-ported here (or dropped, if it was loop-specific and never
+    #     belonged in a shared rule), and core stays the place it is authored.
+    #
+    # Naming the direction because the second case shipped undetected: loop
+    # 3194d24 vendored a `verification-discipline.md` edit from a core working
+    # tree that was never committed, so specfuse-loop 0.17.0 carried wording
+    # this repository had never seen and this test was what caught it — on the
+    # publish PR, after the loop release was tagged and on PyPI. The loop side
+    # is guarded since specfuse/loop#3286: `sync-scaffold.sh` refuses to vendor
+    # from a core checkout with uncommitted changes to a vendored file. This
+    # test remains the backstop for everything that guard cannot see.
     KNOWN_SCAFFOLD_DIVERGENCES: set[str] = set()
 
     def _scaffold_seed(self) -> Path:
