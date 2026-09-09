@@ -34,6 +34,18 @@ WUs and stop" mode.
   the gate file's `status`.** No body edits, no PLAN graph surgery,
   no roadmap edits. If a blocked WU needs spec changes, exit the
   skill and edit the WU file directly, then re-run.
+- **Never hand-edit `GATE-NN-CRITERIA.md`, and do not delete it.**
+  Re-arming a `close` resets `attempts`, which leaves that artifact
+  recording a superseded attempt — the two then disagree and
+  `check_criteria_state_well_formed` refuses the tree
+  (`close-l: … attempt '1' != current attempt '0'`), the gate's broad
+  run goes red on the corpus lint, and the close never dispatches.
+  **The driver now repairs this itself** at dispatch (#3279): an entry
+  whose recorded attempt exceeds the WU's current `attempts` is reset
+  to `unverified`, while entries at or below it keep the state the
+  close recorded. So there is nothing to do here — and hand-clearing
+  the file, which was the only recovery before the fix, now risks
+  discarding state a live attempt still owns.
 - **Do not retry without acknowledging the root cause.** Before
   flipping a WU to `pending`, the user must confirm what changed
   (credentials updated, spec amended, dep installed, environment
@@ -89,6 +101,12 @@ a diagnosis pass).
 For each blocked WU, before asking the user, pull and quote:
 
 - The WU's `id`, `file`, `attempts`, `cost_usd`, `duration_seconds`.
+- **For a `close` / `close-intermediate` unit, the price of re-closing**
+  (#3269): the gate's acceptance-criteria count across its substantive
+  units (what `specfuse lint` WARNs on above `MAX_CRITERIA_PER_GATE_WARN`),
+  and the cost of the gate's last close attempt from `events.jsonl`. A
+  re-close re-derives every broad criterion; in one consumer three re-closes
+  of a 46-criterion gate cost $8–13 each. Say the number before asking.
 - The latest `human_escalation` event for that correlation_id in
   `events.jsonl` — quote `blocked_reason` and `reason`.
 - If `work/<wu_id>/attempt-N.md` notes exist, quote the tail of the
@@ -117,6 +135,7 @@ For each candidate, ask:
 Re-arm sandboxed (r) / Re-arm UNSANDBOXED (u) / Abandon (a) / Skip (s)
   — FEAT-YYYY-NNNN/TNN ?
   attempts: <N>  cost: <$X>  duration: <Ys>
+  (close units only) criteria in gate: <N>  last close attempt: <$X>
   blocked_reason: "<...>"
   re-arm rationale (required for r and u — one line):
 ```
