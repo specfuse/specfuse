@@ -22,6 +22,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 
+from specfuse.loop import scaffold
+
 from specfuse import cli
 
 
@@ -232,6 +234,67 @@ class TestUpgrade(unittest.TestCase):
             self.assertEqual(before, after, "dry-run must not touch the target")
             self.assertEqual(runner.calls, [], "dry-run must not pip-upgrade")
             self.assertIn("dry-run", out.getvalue())
+
+    def test_upgrade_dry_run_previews_the_claude_md_edit(self):
+        """The preview must cover the one hand-authored file in the blast
+        radius (specfuse/loop#3242).
+
+        The real upgrade runs `_write_claude_md` -> `_backfill_rule_imports`,
+        which strips `_RETIRED_RULE_IMPORTS` lines from `.claude/CLAUDE.md`.
+        The preview copied only `.specfuse/` into its temp target, so the
+        backfill ran against a directory with no CLAUDE.md at all and the edit
+        never appeared. Everything the preview DID cover is versioned scaffold
+        data, overwritten wholesale — mechanical and replaceable. The omitted
+        file is the only one carrying the project's own content, and which of
+        its lines survive depends on exact-path matching that is genuinely
+        hard to predict from outside.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            self._init(d)
+            self._make_stale(d)
+            claude_md = Path(d) / ".claude" / "CLAUDE.md"
+            claude_md.parent.mkdir(parents=True, exist_ok=True)
+            retired = scaffold._RETIRED_RULE_IMPORTS[0]
+            claude_md.write_text(
+                f"# Project\n\n{scaffold._RULES_SENTINEL}\n"
+                f"@.specfuse/rules/result-contract.md\n{retired}\n",
+                encoding="utf-8")
+            before = claude_md.read_text(encoding="utf-8")
+
+            out = io.StringIO()
+            with redirect_stdout(out):
+                rc = cli.cmd_upgrade(_args(target=d, dry_run=True),
+                                     runner=_ok_runner(0))
+            printed = out.getvalue()
+
+            self.assertEqual(rc, 0)
+            self.assertEqual(before, claude_md.read_text(encoding="utf-8"),
+                             "dry-run must still write nothing")
+            self.assertIn("CLAUDE.md", printed,
+                          "the preview must name the file it would edit")
+            self.assertIn(
+                retired.strip(), printed,
+                "the preview must show WHICH import line it would remove — "
+                "a count alone still sends the reader to scaffold.py to find "
+                "out what happens to their file")
+
+    def test_upgrade_dry_run_names_the_labels_as_remote_writes(self):
+        """Label creation leaves the machine; a preview that mentions no
+        remote writes reads as a guarantee there are none (loop#3242)."""
+        with tempfile.TemporaryDirectory() as d:
+            self._init(d)
+            self._make_stale(d)
+            out = io.StringIO()
+            with redirect_stdout(out):
+                cli.cmd_upgrade(_args(target=d, dry_run=True),
+                                runner=_ok_runner(0))
+            printed = out.getvalue()
+            self.assertIn("specfuse:follow-up", printed)
+            self.assertIn("specfuse:post-merge", printed)
+            self.assertIn(
+                "remote", printed.lower(),
+                "the labels must be marked as leaving the machine, not listed "
+                "beside local file writes as though they were the same thing")
 
     def test_upgrade_dry_run_tolerates_dangling_symlinks(self):
         """A legacy init.sh scaffold leaves dangling .specfuse/skills/* symlinks.

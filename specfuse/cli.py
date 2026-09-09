@@ -43,6 +43,7 @@ impossible.
 from __future__ import annotations
 
 import argparse
+import difflib
 import importlib
 import importlib.metadata
 import importlib.util
@@ -58,7 +59,7 @@ import urllib.request
 from pathlib import Path
 from typing import Callable
 
-from specfuse.loop import scaffold
+from specfuse.loop import labels, scaffold
 
 from specfuse import components, methodology
 
@@ -840,6 +841,54 @@ def _enable_plugins(target: Path, names: list[str], *, dry_run: bool) -> list[st
     return changed
 
 
+def _claude_md_preview(target: Path, tmp_target: Path) -> list[str]:
+    """Unified-diff lines for the edit an upgrade would make to CLAUDE.md.
+
+    The rest of the preview is versioned scaffold data, overwritten wholesale
+    — mechanical, and replaceable from package data if it goes wrong. This is
+    the one file in the blast radius carrying the project's own content, and
+    the edit is a targeted removal: `_backfill_rule_imports` strips lines in
+    `_RETIRED_RULE_IMPORTS` by exact path, so which of a project's imports
+    survive is genuinely hard to predict without reading `scaffold.py`. That
+    was the reported workflow for a flag whose whole purpose is "tell me what
+    you would do" (specfuse/loop#3242).
+
+    Returns [] when the file does not exist on either side or is unchanged.
+    """
+    rel = Path(".claude") / "CLAUDE.md"
+    before_path, after_path = target / rel, tmp_target / rel
+    before = (before_path.read_text(encoding="utf-8").splitlines(keepends=True)
+              if before_path.is_file() else [])
+    after = (after_path.read_text(encoding="utf-8").splitlines(keepends=True)
+             if after_path.is_file() else [])
+    if before == after:
+        return []
+    return [ln.rstrip("\n") for ln in difflib.unified_diff(
+        before, after, fromfile="a/.claude/CLAUDE.md",
+        tofile="b/.claude/CLAUDE.md", n=1)]
+
+
+def _print_label_preview() -> None:
+    """Name the GitHub labels an upgrade would create, marked as remote writes.
+
+    Label creation is the only part of an upgrade that leaves the machine, and
+    a preview that mentions no remote writes reads as a guarantee there are
+    none (specfuse/loop#3242).
+
+    Lists the registry rather than querying which are missing: establishing
+    that would mean a `gh` round-trip, and a preview should not need the
+    network to say what it would do. So this is the upper bound — existing
+    labels are left alone by the real run.
+    """
+    names = [spec.name for spec in labels.LABEL_REGISTRY]
+    print("specfuse: [dry-run] would create any of these GitHub labels the "
+          "repo is missing — REMOTE WRITE, the only part of an upgrade that "
+          "leaves this machine:")
+    for name in names:
+        print(f"  {name}")
+    print("  (set SPECFUSE_NO_LABELS=1 to skip label provisioning entirely)")
+
+
 def _provision_methodology(target: Path, *, dry_run: bool) -> list[str]:
     """Lay the core substrate into `.specfuse/methodology/`, reporting what landed.
 
@@ -1027,15 +1076,36 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
                     # case.
                     shutil.copytree(src, tmp_target / ".specfuse",
                                     symlinks=True, ignore_dangling_symlinks=True)
+                # .claude/ too, or `wire_claude` runs against a directory with
+                # no CLAUDE.md and writes a fresh one — so the edit the real run
+                # makes to the project's own hand-authored file never shows up
+                # in the preview (specfuse/loop#3242).
+                claude_src = target / ".claude"
+                if claude_src.exists():
+                    shutil.copytree(claude_src, tmp_target / ".claude",
+                                    symlinks=True, ignore_dangling_symlinks=True)
                 try:
-                    written = scaffold.upgrade_specfuse(tmp_target, ci_check=ci_check)
+                    # no_labels: a preview must not reach GitHub. This held only
+                    # by accident before — provision_labels infers the repo from
+                    # its target's cwd and the temp dir is not a git repo — and
+                    # an accident is not a guarantee worth printing.
+                    written = scaffold.upgrade_specfuse(
+                        tmp_target, ci_check=ci_check, no_labels=True)
                 except scaffold.ScaffoldDowngradeError as exc:
                     print(f"specfuse: [dry-run] {exc}", file=sys.stderr)
                     return 1
+                claude_diff = _claude_md_preview(target, tmp_target)
             print(f"specfuse: [dry-run] would overlay {len(written)} file(s) onto "
                   f"{target}/.specfuse/ (no package upgrade in dry-run):")
             for rel in written:
                 print(f"  .specfuse/{rel}")
+            if claude_diff:
+                print(f"specfuse: [dry-run] would edit {target}/.claude/CLAUDE.md "
+                      f"(hand-authored — this is the one file here carrying your "
+                      f"own content):")
+                for line in claude_diff:
+                    print(f"  {line}")
+            _print_label_preview()
         # Not an early return when the loop is already current: the components
         # release independently, so an up-to-date driver says nothing about
         # whether the authoring kit or the substrate has moved.
