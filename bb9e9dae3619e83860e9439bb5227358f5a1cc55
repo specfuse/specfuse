@@ -1,0 +1,18 @@
+Correction: the direction stated in this commit's second message is backwards.
+
+The message frames the change as re-vendoring "from loop 0.17.0", which reads
+as though specfuse/loop is the source of truth for this file. It is not. The
+umbrella owns methodology/; specfuse/loop VENDORS it (loop#130, "vendor shared
+substrate from methodology core; drop cross-repo path dep"), and the file's own
+text says "This rule is core substrate."
+
+What actually happened: loop 3194d24 (FEAT-2026-0109) edited its vendored copy
+from a core working tree whose edit was never committed here, so the loop
+shipped wording upstream had never seen. This commit is a BACK-PORT of that
+downstream edit, not a re-vendor. The content is correct and the provision test
+agrees; only the stated direction was wrong.
+
+Guarded going forward by loop#3285 / loop#3286: sync-scaffold.sh now refuses to
+vendor from a core checkout with uncommitted changes to a vendored file.
+
+Canonical edits to methodology/ are made HERE and flow outward.
