@@ -28,7 +28,9 @@ init/upgrade accept --dry-run (preview, writes nothing). WHICH component scaffol
 they lay down is read from the target repo (`specfuse.components.detect`) rather
 than assumed: the loop's `.specfuse/`, the authoring kit's `.specfuse/authoring/`
 and the orchestrator's substrate are three separate overlays, and a repo gets the
-ones it already has. `--components` overrides the detection, and is how a fresh
+ones it already has. "Separate" means they write disjoint paths; that is checked
+before anything is written (`components.find_collisions`), because the published
+packages have broken it. `--components` overrides the detection, and is how a fresh
 repo asks for anything other than the loop. The scaffolding itself lives in the
 component packages (`specfuse.loop.scaffold`, FEAT-2026-0026, and its two peers);
 this CLI is the thin user-facing bridge over them.
@@ -959,6 +961,38 @@ def _overlay_extra_components(target: Path, selected: list[str], *,
     return rc
 
 
+def _warn_on_collisions(target: Path, selected: list[str]) -> None:
+    """Name every path two writers ship with different content, before either writes.
+
+    A warning, not a failure, for now: five such paths are live in the published
+    loop and orchestrator packages, and refusing here would block every repo that
+    runs both until the orchestrator drops its copies. Once it has, this should
+    fail instead (specfuse/specfuse#176). Printed under --dry-run too — the
+    preview is where a user looks to learn what an upgrade will do.
+    """
+    found, failed = components.payloads(target, selected)
+    collisions = components.find_collisions(found)
+    differing = [c for c in collisions if c.differs]
+    identical = [c for c in collisions if not c.differs]
+    if differing:
+        print(f"specfuse: WARNING — {len(differing)} file(s) are shipped by more than "
+              "one component with different content. Each is written in turn and "
+              "only the last copy survives:", file=sys.stderr)
+        for c in differing:
+            order = " -> ".join(f"{name} ({sha[:8]})" for name, sha in c.writers)
+            print(f"  {c.path}: {order}; {c.lands}'s copy lands", file=sys.stderr)
+    if identical:
+        print(f"specfuse: note — {len(identical)} file(s) are shipped identically by "
+              "more than one component; no conflict today, but nothing keeps them "
+              "in step:", file=sys.stderr)
+        for c in identical:
+            names = ", ".join(name for name, _ in c.writers)
+            print(f"  {c.path}: {names}", file=sys.stderr)
+    for name, why in failed:
+        print(f"specfuse: note — could not measure what {name} writes ({why}); its "
+              "files were left out of the collision check.", file=sys.stderr)
+
+
 def _plugins_for(args: argparse.Namespace, selected: list[str]) -> list[str]:
     """The plugin names to assert in .claude/settings.json.
 
@@ -999,6 +1033,7 @@ def cmd_init(args: argparse.Namespace, *, runner=None) -> int:
     ci_check = getattr(args, "ci_check", None)
     selected, why = _selected_components(args, target)
     print(why)
+    _warn_on_collisions(target, selected)
     plugins = _plugins_for(args, selected)
     dry_run = getattr(args, "dry_run", False)
 
@@ -1053,6 +1088,7 @@ def cmd_upgrade(args: argparse.Namespace, *, runner=None) -> int:
     ci_check = getattr(args, "ci_check", None)
     selected, why = _selected_components(args, target)
     print(why)
+    _warn_on_collisions(target, selected)
     plugins = _plugins_for(args, selected)
     do_loop = components.LOOP in selected
     current, installed = _scaffold_is_current(target)

@@ -19,7 +19,8 @@ The suite has three per-repo scaffolds, each with its own upgrader:
                                                  .specfuse/templates.yaml, CI
 
 They compose: the ownership manifest's one-upgrader-per-install-path invariant is
-what lets all three overlay the same repo without fighting. So the question a
+what lets all three overlay the same repo without fighting. The published packages
+have broken that invariant, so `find_collisions` checks it instead of trusting it. So the question a
 repo answers is not "which one am I" but "which ones am I", and this module
 answers it by looking for each upgrader's own footprint rather than assuming.
 
@@ -31,8 +32,14 @@ which is the historical behaviour and the common case).
 
 from __future__ import annotations
 
+import hashlib
+import io
 import sys
+import tempfile
+from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 LOOP = "loop"
 AUTHORING = "authoring"
@@ -169,7 +176,8 @@ def upgrade_authoring(target: Path, *, dry_run: bool) -> int:
         return int(code or 0)
 
 
-def upgrade_orchestrator(target: Path, *, dry_run: bool, sync_labels: bool = True) -> int:
+def upgrade_orchestrator(target: Path, *, dry_run: bool, sync_labels: bool = True,
+                         kind: str | None = None) -> int:
     """Overlay the orchestrator's frozen substrate into *target*.
 
     The repo kind comes from `orchestrator_kind` — a specs repo and a component
@@ -185,6 +193,10 @@ def upgrade_orchestrator(target: Path, *, dry_run: bool, sync_labels: bool = Tru
     `sync_labels=False` strips the manifest's label list, which is the only part
     of the install that leaves the machine (`gh label create` against the
     target's origin remote).
+
+    `kind` defaults to the one *target* has. The collision check passes the real
+    repo's kind while installing into an empty directory, which on its own would
+    always read as a component repo.
     """
     import yaml
     from specfuse.orchestrator import init as orchestrator_init
@@ -192,6 +204,109 @@ def upgrade_orchestrator(target: Path, *, dry_run: bool, sync_labels: bool = Tru
     doc = yaml.safe_load(orchestrator_init.MANIFEST.read_text(encoding="utf-8"))
     if not sync_labels:
         doc = {**doc, "labels": []}
-    orchestrator_init.install_into(orchestrator_kind(target), target.resolve(),
+    orchestrator_init.install_into(kind or orchestrator_kind(target), target.resolve(),
                                    doc, True, dry_run)
     return 0
+
+
+# --------------------------------------------------------------------------- #
+# Collision guard.
+#
+# "They compose" rests on every install path having ONE writer, and nothing used
+# to check it. Where two writers ship the same path they run in turn and the last
+# one's copy is what lands — silently, in the run, in --dry-run, and in
+# `.scaffold-manifest`, which keeps recording the first writer's hash. That is how
+# the orchestrator's stale forks of four core-owned rules reached repos that run
+# both it and the loop, and read as the loop's rules going backwards
+# (specfuse/specfuse#176).
+#
+# The check asks each writer what it lays down by running it for real into its
+# own empty temp dir: the same entry points the overlays use, so no component's
+# layout is restated here, and a component that moves a file is measured where
+# it moved it. The target is never touched.
+# --------------------------------------------------------------------------- #
+
+# The umbrella's own writer: core's substrate, provisioned after every component.
+METHODOLOGY = "methodology"
+
+# Files each writer EDITS rather than replaces — each merges its own block into
+# whatever is already there. Their empty-dir payloads always differ, by design,
+# so comparing them would warn on every run and bury the collisions that matter.
+MERGED_PATHS = frozenset({".claude/CLAUDE.md", ".claude/settings.json", ".gitignore"})
+
+
+@dataclass(frozen=True)
+class Collision:
+    """A path more than one writer ships: each writer and its sha256, in write order."""
+
+    path: str
+    writers: tuple[tuple[str, str], ...]
+
+    @property
+    def differs(self) -> bool:
+        return len({sha for _, sha in self.writers}) > 1
+
+    @property
+    def lands(self) -> str:
+        """The writer whose copy ends up on disk — the last one to write it."""
+        return self.writers[-1][0]
+
+
+def _writer(name: str, kind: str) -> Callable[[Path], object]:
+    """The install entry point for one writer, aimed at whatever root it is given."""
+    if name == LOOP:
+        def write_loop(root: Path) -> object:
+            from specfuse.loop import scaffold
+            return scaffold.init(root, no_labels=True)
+        return write_loop
+    if name == AUTHORING:
+        return lambda root: upgrade_authoring(root, dry_run=False)
+    if name == ORCHESTRATOR:
+        return lambda root: upgrade_orchestrator(root, dry_run=False,
+                                                 sync_labels=False, kind=kind)
+    from specfuse import methodology
+    return methodology.provision
+
+
+def payloads(target: str | Path, selected: list[str]
+             ) -> tuple[dict[str, dict[str, str]], list[tuple[str, str]]]:
+    """What each writer lays down, as `{writer: {repo-relative path: sha256}}`.
+
+    Writers come in write order: the selected components in ORDER, then core's
+    methodology, which the umbrella provisions last. A writer that cannot install
+    into an empty directory is returned in the second list, with its error,
+    rather than raised — the check is advisory and must not be what stops an
+    upgrade.
+    """
+    kind = orchestrator_kind(target)
+    found: dict[str, dict[str, str]] = {}
+    failed: list[tuple[str, str]] = []
+    for name in [*(n for n in ORDER if n in selected), METHODOLOGY]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            try:
+                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    result = _writer(name, kind)(root)
+            # Blind on purpose: whatever a component raises while installing into
+            # a scratch dir, the answer is "not measured", never a failed upgrade.
+            except (Exception, SystemExit) as exc:  # noqa: BLE001
+                failed.append((name, f"{type(exc).__name__}: {exc}"))
+                continue
+            if isinstance(result, int) and result != 0:
+                failed.append((name, f"exited {result}"))
+                continue
+            found[name] = {
+                p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in root.rglob("*") if p.is_file() and not p.is_symlink()}
+    return found, failed
+
+
+def find_collisions(payloads: dict[str, dict[str, str]]) -> list[Collision]:
+    """Every path more than one writer ships, MERGED_PATHS aside, sorted by path."""
+    writers: dict[str, list[tuple[str, str]]] = {}
+    for name, files in payloads.items():
+        for path, sha in files.items():
+            if path not in MERGED_PATHS:
+                writers.setdefault(path, []).append((name, sha))
+    return [Collision(path, tuple(ws)) for path, ws in sorted(writers.items())
+            if len(ws) > 1]

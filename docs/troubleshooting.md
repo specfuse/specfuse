@@ -139,6 +139,30 @@ still happened; run the printed command yourself.
 Pass `--no-self-upgrade` to skip the package step entirely and only touch the
 repo's scaffold.
 
+## `specfuse upgrade` warns that a file is shipped by more than one component
+
+```
+specfuse: WARNING — 5 file(s) are shipped by more than one component with different content. Each is written in turn and only the last copy survives:
+  .specfuse/docs/methodology.md: loop (dd5480e2) -> orchestrator (2f1b3cc9); orchestrator's copy lands
+```
+
+The components install in a fixed order (loop, authoring, orchestrator, then
+core's methodology), and two of them ship the same path. Whichever writes last
+wins, and `.specfuse/.scaffold-manifest` still records the first writer's hash.
+This is a packaging defect in the components, not something wrong with your
+repo. The upgrade still runs; the warning only tells you which copy you ended up
+with.
+
+Known case: `specfuse-orchestrator` 0.5.0 ships older copies of
+`docs/methodology.md` and four core rules (`correlation-ids`, `never-touch`,
+`security-boundaries`, `verification-discipline`). In a repo that runs both it
+and the loop, those older copies replace the loop's. Until the orchestrator stops
+shipping them, copy the loop's versions back after upgrading (tracked in
+specfuse/specfuse#175).
+
+A `note` that a file is shipped *identically* by two components needs no action
+today. It is listed because nothing keeps the two copies in step.
+
 ## `specfuse init`/`upgrade` scaffolded the wrong component
 
 Before 0.12.2 both commands ran the driver's scaffold unconditionally, so
