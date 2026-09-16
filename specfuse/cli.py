@@ -65,7 +65,7 @@ from specfuse.loop import labels, scaffold
 
 from specfuse import components, methodology
 
-__version__ = "0.12.3"
+__version__ = "0.13.0"
 
 MARKETPLACE = "specfuse/specfuse"
 PLUGIN = "specfuse@specfuse"
