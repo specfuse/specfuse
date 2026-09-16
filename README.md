@@ -80,8 +80,11 @@ rather than assuming:
 
 A repo gets exactly the components it already has — an authoring repo running
 `specfuse upgrade` refreshes its kit and is **not** given a driver scaffold it
-never asked for. A repo can have several; they compose, because the ownership
-manifest gives every install path exactly one upgrader.
+never asked for. A repo can have several; they compose as long as each component
+owns its install paths outright. That is checked rather than assumed: before
+writing, `init`/`upgrade` install every selected component into a throwaway
+directory and warn when two of them ship the same file with different content,
+naming whose copy lands.
 
 A repo with none of them is a fresh one, and defaults to the driver. Override the
 detection with `--components`:
