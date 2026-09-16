@@ -94,7 +94,7 @@ seen from the two surfaces.
 ## Lifecycle states
 
 The same machines drawn as diagrams, plus the file or issue that holds each
-unit's state: [`docs/unit-lifecycles.md`](../docs/unit-lifecycles.md). The tables
+unit's state: [`docs/unit-lifecycles.md`](https://github.com/specfuse/specfuse/blob/main/docs/unit-lifecycles.md). The tables
 below are canonical; that file renders them.
 
 ### Initiative / feature level
