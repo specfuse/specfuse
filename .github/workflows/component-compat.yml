@@ -41,6 +41,10 @@ jobs:
     permissions:
       contents: read
       issues: write
+    env:
+      # Shared by the report and recovery steps: the recovery step finds the issue
+      # to close by this exact title.
+      ISSUE_TITLE: "component-compat: the suite no longer resolves against latest components"
     steps:
       - uses: actions/checkout@v4
 
@@ -110,7 +114,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -eu
-          TITLE="component-compat: the suite no longer resolves against latest components"
+          TITLE="$ISSUE_TITLE"
           # A QUOTED heredoc written to a file, not $(cat <<EOF ...) inline: an
           # unquoted heredoc inside command substitution needs every backtick
           # escaped and trips older bash parsers on a plain apostrophe. This way
@@ -134,3 +138,24 @@ jobs:
           else
             gh issue create --title "$TITLE" --body-file /tmp/issue-body.md
           fi
+
+      # The other half of the guard. Without it the failure issue outlives the
+      # failure: #161 stayed open through eight green nights, and an issue that is
+      # open whether or not anything is broken stops meaning anything. Any green
+      # run counts, manual ones included — unlike a failure, a pass while
+      # debugging is exactly the news this issue is waiting for.
+      - name: Close the failure issue on recovery
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -eu
+          # Exact title match: `--search` is fuzzy, and this step closes things.
+          OPEN=$(gh issue list --state open --search "$ISSUE_TITLE in:title" \
+                   --json number,title \
+                   -q "[.[] | select(.title == env.ISSUE_TITLE) | .number] | .[]" \
+                   2>/dev/null || true)
+          for n in $OPEN; do
+            gh issue close "$n" --comment "Recovered: component-compat passed. Run: $RUN_URL"
+          done
