@@ -26,6 +26,8 @@ Two things are asserted here, and the first is the one that would rot silently:
 from __future__ import annotations
 
 import io
+import posixpath
+import re
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -69,29 +71,51 @@ class TestPackagedSubstrate(unittest.TestCase):
 
 
 class TestProvisionedSubset(unittest.TestCase):
-    """Only the machine contract is laid into a repo; the prose is held back.
+    """The machine contract and the glossary are laid into a repo; the rest waits.
 
-    The wheel carries the whole substrate — releasing the prose later is a change
-    to `PROVISIONED_SUBTREES`, not to packaging. What ships now is `rules/` and
-    `schemas/`: exactly what consumers cite, and every file in them is either
-    byte-identical to the loop scaffold's copy or absent from it, so provisioning
-    adds no contradiction to a repo.
+    The wheel carries the whole substrate — releasing more prose later is a change
+    to `PROVISIONED_SUBTREES`, not to packaging. What ships is `rules/`,
+    `schemas/` and `glossary.md`: what consumers cite, with every file either
+    byte-identical to the loop scaffold's copy or absent from it.
 
-    `glossary.md` and `methodology.md` are withheld because the loop ships its own
-    diverged `.specfuse/docs/` versions — core is ahead on the roadmap status
-    vocabulary while the loop is ahead on loop-surface detail — and laying core's
-    beside them would put contradictory status vocabulary in one repo with nothing
-    saying which wins (#137).
+    `methodology.md` is withheld because core's copy is a stale snapshot of the
+    loop's, and `overview.md` because most of its relative links point at files
+    that are not provisioned (#137).
     """
 
-    def test_only_the_machine_contract_is_provisioned(self):
+    def test_the_contract_and_the_glossary_are_provisioned(self):
         tops = {rel.parts[0] for rel in methodology.provisioned_files()}
-        self.assertEqual({"rules", "schemas"}, tops)
+        self.assertEqual({"rules", "schemas", "glossary.md"}, tops)
 
-    def test_the_diverged_prose_is_not_provisioned(self):
+    def test_the_withheld_prose_is_not_provisioned(self):
         names = {rel.as_posix() for rel in methodology.provisioned_files()}
-        for withheld in ("glossary.md", "methodology.md", "overview.md"):
+        for withheld in ("methodology.md", "overview.md"):
             self.assertNotIn(withheld, names)
+
+    def test_provisioned_links_resolve(self):
+        """A relative link in a provisioned file must land on another provisioned
+        file. In a consumer repo nothing else is there — which is exactly why
+        `overview.md` cannot ship yet, and why the glossary's one link into this
+        repository's docs/ had to become absolute before it could."""
+        provisioned = {rel.as_posix() for rel in methodology.provisioned_files()}
+        link = re.compile(r"\]\(([^)\s]+)\)")
+        broken = []
+        for rel in methodology.provisioned_files():
+            if rel.suffix != ".md":
+                continue
+            text = (SOURCE / rel).read_text(encoding="utf-8")
+            for target in link.findall(text):
+                if re.match(r"^[a-z][a-z0-9+.-]*:", target) or target.startswith("#"):
+                    continue  # absolute URL, or an anchor within the file
+                path = target.split("#", 1)[0]
+                resolved = posixpath.normpath(posixpath.join(rel.parent.as_posix(), path))
+                if not (resolved in provisioned
+                        or any(p.startswith(resolved.rstrip("/") + "/")
+                               for p in provisioned)):
+                    broken.append(f"{rel.as_posix()} -> {target}")
+        self.assertEqual([], broken,
+                         "provisioned files link to paths that are not provisioned:\n  "
+                         + "\n  ".join(broken))
 
     def test_the_wheel_still_carries_the_prose(self):
         # Withheld from provisioning, NOT from the package — otherwise releasing
