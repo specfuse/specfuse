@@ -18,6 +18,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from specfuse import cli, components
 
@@ -233,6 +234,142 @@ class TestUpgradeRespectsDetection(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertTrue((root / ".specfuse" / "authoring" / "VERSION").is_file())
             self.assertFalse((root / ".specfuse" / "VERSION").exists())
+
+
+class TestFindCollisions(unittest.TestCase):
+    """The guard's comparison, on hand-built payloads (specfuse/specfuse#176)."""
+
+    def test_paths_only_one_writer_ships_are_not_collisions(self):
+        self.assertEqual(components.find_collisions(
+            {"loop": {"a.md": "1"}, "orchestrator": {"b.md": "2"}}), [])
+
+    def test_same_path_different_content_names_the_writer_that_lands(self):
+        rel = ".specfuse/rules/never-touch.md"
+        [c] = components.find_collisions(
+            {"loop": {rel: "new"}, "orchestrator": {rel: "old"}})
+        self.assertEqual(c.path, rel)
+        self.assertTrue(c.differs)
+        self.assertEqual(c.writers, (("loop", "new"), ("orchestrator", "old")))
+        self.assertEqual(c.lands, "orchestrator")
+
+    def test_same_path_same_content_is_reported_but_does_not_differ(self):
+        [c] = components.find_collisions(
+            {"loop": {"schemas/event.json": "x"},
+             "orchestrator": {"schemas/event.json": "x"}})
+        self.assertFalse(c.differs)
+
+    def test_files_every_writer_merges_into_are_not_compared(self):
+        """CLAUDE.md, settings.json and .gitignore are edited in place by each
+        writer; their empty-dir copies always differ and that is by design."""
+        self.assertEqual(components.find_collisions({
+            "loop": dict.fromkeys(components.MERGED_PATHS, "a"),
+            "orchestrator": dict.fromkeys(components.MERGED_PATHS, "b"),
+        }), [])
+
+
+class TestPayloads(unittest.TestCase):
+
+    def test_measures_in_scratch_dirs_and_never_touches_the_target(self):
+        with tempfile.TemporaryDirectory() as d:
+            _touch(Path(d), ".specfuse/VERSION")
+            before = sorted(Path(d).rglob("*"))
+            found, failed = components.payloads(d, [components.LOOP])
+            self.assertEqual(sorted(Path(d).rglob("*")), before)
+        self.assertEqual(failed, [])
+        self.assertEqual(list(found), [components.LOOP, components.METHODOLOGY])
+        self.assertIn(".specfuse/VERSION", found[components.LOOP])
+        self.assertTrue(all(p.startswith(".specfuse/methodology/")
+                            for p in found[components.METHODOLOGY]))
+
+    def test_writers_come_in_install_order_whatever_the_selection_order(self):
+        with tempfile.TemporaryDirectory() as d, \
+                patch.object(components, "_writer", return_value=lambda root: None):
+            found, _ = components.payloads(
+                d, [components.ORCHESTRATOR, components.AUTHORING])
+        self.assertEqual(list(found), [components.AUTHORING, components.ORCHESTRATOR,
+                                       components.METHODOLOGY])
+
+    def test_a_writer_that_raises_is_reported_not_raised(self):
+        with tempfile.TemporaryDirectory() as d, \
+                patch.object(components, "upgrade_authoring",
+                             side_effect=RuntimeError("no kit")):
+            found, failed = components.payloads(d, [components.AUTHORING])
+        self.assertNotIn(components.AUTHORING, found)
+        self.assertEqual(failed, [(components.AUTHORING, "RuntimeError: no kit")])
+
+    def test_a_writer_that_returns_non_zero_is_reported(self):
+        with tempfile.TemporaryDirectory() as d, \
+                patch.object(components, "upgrade_authoring", return_value=1):
+            found, failed = components.payloads(d, [components.AUTHORING])
+        self.assertNotIn(components.AUTHORING, found)
+        self.assertEqual(failed, [(components.AUTHORING, "exited 1")])
+
+    def test_orchestrator_is_measured_as_the_targets_kind(self):
+        """The scratch dir has no role config, so without the target's kind every
+        repo would be measured as a component repo."""
+        kinds = []
+
+        def record(root, **kw):
+            kinds.append(kw["kind"])
+            return 0
+
+        with tempfile.TemporaryDirectory() as d, \
+                patch.object(components, "upgrade_orchestrator", side_effect=record):
+            _touch(Path(d), ".specfuse/agents/specs/CLAUDE.md")
+            components.payloads(d, [components.ORCHESTRATOR])
+        self.assertEqual(kinds, ["specs"])
+
+
+class TestInitAndUpgradeWarnOnCollisions(unittest.TestCase):
+    """The warning at the command level: named, advisory, and in --dry-run too."""
+
+    REL = ".specfuse/docs/methodology.md"
+
+    def _payloads(self, loop_sha, orch_sha, failed=()):
+        return patch.object(components, "payloads", return_value=(
+            {"loop": {self.REL: loop_sha}, "orchestrator": {self.REL: orch_sha}},
+            list(failed)))
+
+    def _upgrade(self, d, **kw):
+        _touch(Path(d), ".specfuse/authoring/VERSION")
+        err = io.StringIO()
+        with redirect_stdout(io.StringIO()), redirect_stderr(err):
+            rc = cli.cmd_upgrade(_args(target=d, **kw), runner=_ok_runner(0))
+        return rc, err.getvalue()
+
+    def test_dry_run_names_both_writers_and_whose_copy_lands(self):
+        with tempfile.TemporaryDirectory() as d, \
+                self._payloads("dd5480e2aaaa", "2f1b3cc9bbbb"):
+            rc, err = self._upgrade(d, dry_run=True)
+        self.assertEqual(rc, 0)
+        self.assertIn("WARNING — 1 file(s)", err)
+        self.assertIn(f"{self.REL}: loop (dd5480e2) -> orchestrator (2f1b3cc9); "
+                      "orchestrator's copy lands", err)
+
+    def test_a_collision_does_not_change_the_exit_code(self):
+        with tempfile.TemporaryDirectory() as d, self._payloads("a", "b"):
+            rc, err = self._upgrade(d)
+        self.assertEqual(rc, 0)
+        self.assertIn("WARNING", err)
+
+    def test_identical_copies_are_a_note_not_a_warning(self):
+        with tempfile.TemporaryDirectory() as d, self._payloads("same", "same"):
+            _rc, err = self._upgrade(d, dry_run=True)
+        self.assertNotIn("WARNING", err)
+        self.assertIn(f"{self.REL}: loop, orchestrator", err)
+
+    def test_an_unmeasured_writer_is_said_so(self):
+        with tempfile.TemporaryDirectory() as d, \
+                self._payloads("a", "a", failed=[("authoring", "exited 1")]):
+            _rc, err = self._upgrade(d, dry_run=True)
+        self.assertIn("could not measure what authoring writes (exited 1)", err)
+
+    def test_init_on_a_fresh_repo_warns_too(self):
+        with tempfile.TemporaryDirectory() as d, self._payloads("a", "b"):
+            err = io.StringIO()
+            with redirect_stdout(io.StringIO()), redirect_stderr(err):
+                cli.cmd_init(_args(target=d, dry_run=True))
+        self.assertIn("WARNING", err.getvalue())
 
 
 if __name__ == "__main__":
