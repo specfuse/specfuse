@@ -46,29 +46,27 @@ INSTALL_SUBPATH = Path(".specfuse") / "methodology"
 # Which subtrees are provisioned into a repo. The wheel carries the WHOLE
 # substrate; only these are laid down.
 #
-# The machine contract ships; the prose does not, yet. `rules/` and `schemas/` are
-# what consumers actually cite — the authoring skills reference
-# `shared/rules/...` and `shared/schemas/...` and never the prose — and every
-# file in them is either byte-identical to the loop's scaffold copy or absent
-# from it, so provisioning them adds no contradiction.
+# The machine contract ships, and so does the one piece of prose that is core's
+# alone. `rules/` and `schemas/` are what consumers cite, and every file in them is
+# byte-identical to the loop's scaffold copy or absent from it.
 #
-# `glossary.md`, `methodology.md` and `overview.md` are held back because the loop
-# scaffold ships its own `.specfuse/docs/` versions that have genuinely diverged,
-# and not as stale copies:
+# `glossary.md` ships too: a cross-surface unit reference (lifecycles with their
+# per-plane transition owners, the plane handoff, the correlation-ID shapes) that
+# the authoring skills cite as `methodology/glossary.md` §"Lifecycle states". Its
+# loop-native status enums match the loop's linter exactly. The loop's own
+# `.specfuse/docs/glossary.md` is a different document with a different job —
+# onboarding prose — and lives at a different path, so the two never collide.
 #
-#   * glossary.md   — a DIFFERENT document. Core's is a cross-surface unit
-#     reference; the loop's is onboarding prose for loop users. Both legitimate.
-#   * methodology.md — diverged in both directions. Core is ahead on the roadmap
-#     status vocabulary (the blocked/deferred split, #117); the loop is ahead on
-#     loop-surface detail core deliberately does not carry (auto_close_disabled,
-#     hedged met_locally verdicts, driver version floors).
+# Still withheld, pending #137:
 #
-# Provisioning those today would put two files with the same name and
-# contradictory status vocabulary in one repo, and an agent reading both would
-# have no way to know which wins. That is an editorial decision about surface
-# expressions, not a packaging one — tracked in #137, and this tuple is what
-# changes when it lands.
-PROVISIONED_SUBTREES = ("rules", "schemas")
+#   * methodology.md — not a diverged peer but a stale snapshot of the loop's
+#     `docs/methodology.md`: no line of its own, false in places the loop has
+#     since corrected. Provisioning it would lay a second, older gate-cycle
+#     document beside the loop's. The proposal is to make the loop its one owner.
+#   * overview.md — correct, but 8 of its 11 relative links point at files that
+#     are not provisioned (methodology.md ×4, concepts/, this repo's docs/ ×3). It
+#     ships once those are absolute. `test_provisioned_links_resolve` holds that line.
+PROVISIONED_SUBTREES = ("rules", "schemas", "glossary.md")
 
 
 class MethodologyMissingError(RuntimeError):
