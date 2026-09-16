@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://specfuse.dev/methodology/schemas/feature-mint.schema.json",
+  "title": "Feature registry frontmatter — the mint contract",
+  "$comment": "Core half of the feature-frontmatter split (specfuse/specfuse#179, decided in #119). These are the fields the specs agent writes when it mints a feature or initiative registry entry, in the authoring plane; the constraints are taken unchanged from the orchestrator's feature-frontmatter.schema.json as of specfuse-orchestrator 0.6.0. Deliberately OPEN — no `additionalProperties: false` — because the orchestrator composes on top of this schema with `allOf` + `$ref` and closes the object itself with `unevaluatedProperties: false`; a closed base would reject the planning fields (`task_graph`, `feature_graph`, `next_step`) before the extension is consulted. Validated standalone, an unknown key therefore passes. Planning fields, their oneOf, and the state-conditional `next_step` requirement are the orchestrator's and are not declared here. The `$id` names core as the owner; the older core schemas still carry pre-extraction orchestrator `$id`s, which is a separate question.",
+  "description": "YAML frontmatter a registry entry (`features/<id>.md`) carries from the moment it is minted: its correlation ID, lifecycle state, the repos it spans, and its autonomy default. A strict weakening of the orchestrator's feature-frontmatter schema: anything valid there is valid here.",
+  "type": "object",
+  "required": [
+    "correlation_id",
+    "state",
+    "involved_repos",
+    "autonomy_default"
+  ],
+  "properties": {
+    "correlation_id": {
+      "type": "string",
+      "description": "Feature- or initiative-level correlation ID: FEAT-YYYY-NNNN (legacy feature) or INIT-YYYY-NNNN (initiative). Sub-unit IDs (TNN/FNN) are not valid here. Format and minting rules: rules/correlation-ids.md.",
+      "pattern": "^(FEAT|INIT)-\\d{4}-\\d{4}$"
+    },
+    "state": {
+      "type": "string",
+      "description": "Lifecycle state from the shared spine in glossary.md §\"Lifecycle states\" (initiative / feature level).",
+      "enum": [
+        "drafting",
+        "validating",
+        "planning",
+        "plan_review",
+        "generating",
+        "in_progress",
+        "blocked",
+        "done",
+        "abandoned"
+      ]
+    },
+    "involved_repos": {
+      "type": "array",
+      "description": "Component repositories the feature or initiative spans, as `owner/repo` strings.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "autonomy_default": {
+      "type": "string",
+      "description": "Feature-level autonomy default.",
+      "enum": ["auto", "review", "supervised"]
+    }
+  }
+}
