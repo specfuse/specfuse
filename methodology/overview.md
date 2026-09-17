@@ -5,8 +5,10 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 
 # Specfuse in one read
 
-The front door to this folder. [`methodology.md`](methodology.md) is the
-contract — precise, complete, and written for implementers. This file is the
+The front door to this folder. The loop's
+[`docs/methodology.md`](https://github.com/specfuse/loop/blob/main/docs/methodology.md),
+which owns it, is the gate-cycle contract — precise, complete, and written for
+implementers. This file is the
 orientation you read *first*: what the method bets on, how it maps onto the
 software lifecycle you already know, and how the projects fit together.
 
@@ -84,7 +86,7 @@ the feature is done. Two details worth knowing before you read the contract:
   boundary auto-closes gates that stayed on-plan; anything off-plan falls back to
   the full reflective close automatically.
 
-Both, in full: [`methodology.md` §3 and §6](methodology.md).
+Both, in full: [the loop's `methodology.md` §3 and §6](https://github.com/specfuse/loop/blob/main/docs/methodology.md).
 
 ## 4. Mapped onto a classical SDLC
 
@@ -161,7 +163,7 @@ flowchart LR
   implementation feature *is* a loop feature. The orchestrator owns
   initiative→feature decomposition and cross-repo ordering; it does not identify
   gates, run `plan-next`, or hold a per-gate review.
-  ([addendum](concepts/architecture-addendum-gates-and-iterative-planning.md))
+  ([addendum](https://github.com/specfuse/specfuse/blob/main/methodology/concepts/architecture-addendum-gates-and-iterative-planning.md))
 - **Neither plane imports the other.** Both depend on core, which is where the
   shared contract ships from.
 - **Each project is independently adoptable.** The loop is usable in one repo
@@ -169,17 +171,17 @@ flowchart LR
   work genuinely spans repos.
 
 Surface-by-surface differences (state backend, dispatch, branch/merge, spec
-front-end): [`methodology.md` §10](methodology.md).
+front-end): [the loop's `methodology.md` §10](https://github.com/specfuse/loop/blob/main/docs/methodology.md#10-the-two-execution-surfaces).
 
 ## 7. Where to read next
 
 | Read | For |
 | --- | --- |
-| [`methodology.md`](methodology.md) | The gate-cycle contract in full — the canonical source for everything above. |
+| [loop `docs/methodology.md`](https://github.com/specfuse/loop/blob/main/docs/methodology.md) | The gate-cycle contract in full — owned by the loop, and the canonical source for everything above. In a loop repo it is `.specfuse/docs/methodology.md`. |
 | [`glossary.md`](glossary.md) | Every unit defined once, plus lifecycle state machines and transition ownership. |
 | [`rules/`](rules/) | The enforceable rules: borrowed vocabularies, correlation IDs, never-touch, role-switch hygiene, security boundaries, verification discipline. |
-| [`docs/product-lifecycle.md`](../docs/product-lifecycle.md) | The end-to-end path: idea → initiative → specs → handoff → features → merged code, and the command at each step. |
-| [`docs/unit-lifecycles.md`](../docs/unit-lifecycles.md) | The state machines, drawn: every state of an idea, initiative, feature, gate, WU and task, plus where each record lives. |
-| [`docs/ways-of-working.md`](../docs/ways-of-working.md) | The operating manual: cadences, who does what, and the failure modes to watch for. |
+| [`docs/product-lifecycle.md`](https://github.com/specfuse/specfuse/blob/main/docs/product-lifecycle.md) | The end-to-end path: idea → initiative → specs → handoff → features → merged code, and the command at each step. |
+| [`docs/unit-lifecycles.md`](https://github.com/specfuse/specfuse/blob/main/docs/unit-lifecycles.md) | The state machines, drawn: every state of an idea, initiative, feature, gate, WU and task, plus where each record lives. |
+| [`docs/ways-of-working.md`](https://github.com/specfuse/specfuse/blob/main/docs/ways-of-working.md) | The operating manual: cadences, who does what, and the failure modes to watch for. |
 | [orchestrator vision](https://github.com/specfuse/orchestrator/blob/main/docs/orchestrator-vision.md) | Why the execution plane exists, what it isn't, and its five principles. |
 | [loop getting-started](https://github.com/specfuse/loop/blob/main/docs/getting-started.md) | A narrated first feature, end to end. |

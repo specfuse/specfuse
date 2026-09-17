@@ -333,6 +333,6 @@ transient and stops at the mint, is deliberately *not* part of it.
 | --- | --- |
 | [`product-lifecycle.md`](product-lifecycle.md) | The ordered path through these states, with the command that moves each step. |
 | [`methodology/glossary.md`](../methodology/glossary.md) | The canonical prose definitions these diagrams render. |
-| [`methodology/methodology.md`](../methodology/methodology.md) | The gate cycle, the five-section WU contract, auto-close, autonomy. |
+| [loop `docs/methodology.md`](https://github.com/specfuse/loop/blob/main/docs/methodology.md) | The gate cycle, the five-section WU contract, auto-close, autonomy. Owned by the loop. |
 | [`methodology/rules/correlation-ids.md`](../methodology/rules/correlation-ids.md) | The ID format and minting rules. |
 | [`ways-of-working.md`](ways-of-working.md) | Which states demand human attention, and the failure modes around each. |

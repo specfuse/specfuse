@@ -13,7 +13,7 @@ This file owns one thing: **the ordered path, and the command that moves each
 step.** It does not define the units (that is
 [`methodology/glossary.md`](../methodology/glossary.md)), the state machines
 ([`unit-lifecycles.md`](unit-lifecycles.md)), the contracts
-([`methodology/methodology.md`](../methodology/methodology.md)), or the operating
+([loop `docs/methodology.md`](https://github.com/specfuse/loop/blob/main/docs/methodology.md)), or the operating
 cadences ([`ways-of-working.md`](ways-of-working.md)). It links rather than
 restates.
 
@@ -382,7 +382,7 @@ deployed components). Periodically: `/specfuse:scaffold-upgrade`,
 | [`unit-lifecycles.md`](unit-lifecycles.md) | The state machines: every state of an idea, initiative, feature, gate, WU, and task, plus where each record lives on disk. |
 | [`ways-of-working.md`](ways-of-working.md) | The cadence model — which of the four moments you are in, and the failure modes. |
 | [`methodology/overview.md`](../methodology/overview.md) | Orientation: the bet, the five nouns, how the planes collaborate. |
-| [`methodology/methodology.md`](../methodology/methodology.md) | The gate-cycle contract in full. |
+| [loop `docs/methodology.md`](https://github.com/specfuse/loop/blob/main/docs/methodology.md) | The gate-cycle contract in full. Owned by the loop. |
 | [`methodology/glossary.md`](../methodology/glossary.md) | Every unit defined once; correlation-ID reference. |
 | [authoring getting-started](https://github.com/specfuse/authoring/blob/main/docs/getting-started.md) | Bootstrapping a product-specs repo and authoring a first domain. |
 | [orchestrator operator runbook](https://github.com/specfuse/orchestrator/blob/main/docs/operator-runbook.md) | The specs-agent session, step by step. |
