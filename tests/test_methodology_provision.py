@@ -71,32 +71,39 @@ class TestPackagedSubstrate(unittest.TestCase):
 
 
 class TestProvisionedSubset(unittest.TestCase):
-    """The machine contract and the glossary are laid into a repo; the rest waits.
+    """The contract and core's own prose are laid into a repo; `concepts/` is not.
 
-    The wheel carries the whole substrate — releasing more prose later is a change
+    The wheel carries the whole substrate — provisioning more later is a change
     to `PROVISIONED_SUBTREES`, not to packaging. What ships is `rules/`,
-    `schemas/` and `glossary.md`: what consumers cite, with every file either
-    byte-identical to the loop scaffold's copy or absent from it.
+    `schemas/`, `glossary.md` and `overview.md`, with every file either
+    byte-identical to the loop scaffold's copy, absent from it, or a recorded
+    stale-loop case below.
 
-    `methodology.md` is withheld because core's copy is a stale snapshot of the
-    loop's, and `overview.md` because most of its relative links point at files
-    that are not provisioned (#137).
+    There is no `methodology.md` in core at all: the loop owns the gate-cycle
+    contract and ships it as `.specfuse/docs/methodology.md` (#137).
     """
 
-    def test_the_contract_and_the_glossary_are_provisioned(self):
+    def test_the_contract_and_the_core_prose_are_provisioned(self):
         tops = {rel.parts[0] for rel in methodology.provisioned_files()}
-        self.assertEqual({"rules", "schemas", "glossary.md"}, tops)
+        self.assertEqual({"rules", "schemas", "glossary.md", "overview.md"}, tops)
 
-    def test_the_withheld_prose_is_not_provisioned(self):
-        names = {rel.as_posix() for rel in methodology.provisioned_files()}
-        for withheld in ("methodology.md", "overview.md"):
-            self.assertNotIn(withheld, names)
+    def test_concepts_are_repository_reading_not_provisioned(self):
+        tops = {rel.parts[0] for rel in methodology.provisioned_files()}
+        self.assertNotIn("concepts", tops)
+
+    def test_core_does_not_carry_a_methodology_md(self):
+        # The loop owns it (#137). A copy here is how the last one went stale:
+        # nothing kept it in step, and it drifted into saying false things while
+        # still reading as canonical.
+        self.assertFalse((SOURCE / "methodology.md").exists())
+        names = {rel.as_posix() for rel in methodology.substrate_files()}
+        self.assertNotIn("methodology.md", names)
 
     def test_provisioned_links_resolve(self):
         """A relative link in a provisioned file must land on another provisioned
-        file. In a consumer repo nothing else is there — which is exactly why
-        `overview.md` cannot ship yet, and why the glossary's one link into this
-        repository's docs/ had to become absolute before it could."""
+        file. In a consumer repo nothing else is there — which is why everything
+        `overview.md` points at outside the provisioned set, and the glossary's
+        one link into this repository's docs/, are absolute URLs."""
         provisioned = {rel.as_posix() for rel in methodology.provisioned_files()}
         link = re.compile(r"\]\(([^)\s]+)\)")
         broken = []
@@ -117,16 +124,17 @@ class TestProvisionedSubset(unittest.TestCase):
                          "provisioned files link to paths that are not provisioned:\n  "
                          + "\n  ".join(broken))
 
-    def test_the_wheel_still_carries_the_prose(self):
-        # Withheld from provisioning, NOT from the package — otherwise releasing
+    def test_the_wheel_carries_the_unprovisioned_substrate_too(self):
+        # Not provisioned is not the same as not packaged — otherwise provisioning
         # it later means changing the build rather than one tuple.
         names = {rel.as_posix() for rel in methodology.substrate_files()}
-        for present in ("glossary.md", "methodology.md", "overview.md"):
+        for present in ("glossary.md", "overview.md",
+                        "concepts/architecture-addendum-gates-and-iterative-planning.md"):
             self.assertIn(present, names)
 
     # Provisioned files that currently differ from the loop scaffold's copy.
     #
-    # EMPTY, and that is the intended steady state: every provisioned file is
+    # EMPTY is the intended steady state (one entry today, below): every provisioned file is
     # byte-identical to the loop's copy or absent from it, which is the premise
     # `methodology.py` provisions on at all. It held three schemas from
     # specfuse/loop#1433 — core adopted the widened correlation-ID patterns in
@@ -161,7 +169,17 @@ class TestProvisionedSubset(unittest.TestCase):
     # is guarded since specfuse/loop#3286: `sync-scaffold.sh` refuses to vendor
     # from a core checkout with uncommitted changes to a vendored file. This
     # test remains the backstop for everything that guard cannot see.
-    KNOWN_SCAFFOLD_DIVERGENCES: set[str] = set()
+    #
+    # Current entry, which meets that bar:
+    #
+    #   * rules/correlation-ids.md — core reworded line 13 when the loop became
+    #     the owner of methodology.md (#137): the rule no longer claims
+    #     methodology.md is "in this shared substrate set". Core is right; the
+    #     loop's vendored copy still carries the old line. Clears when the loop
+    #     re-vendors (specfuse/loop#3336) and a loop release carries it —
+    #     `test_no_scaffold_waiver_outlives_its_cause` fails that day, which is
+    #     the signal to delete this entry.
+    KNOWN_SCAFFOLD_DIVERGENCES: set[str] = {"rules/correlation-ids.md"}
 
     def _scaffold_seed(self) -> Path:
         try:

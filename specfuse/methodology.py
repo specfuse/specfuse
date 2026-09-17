@@ -57,16 +57,17 @@ INSTALL_SUBPATH = Path(".specfuse") / "methodology"
 # `.specfuse/docs/glossary.md` is a different document with a different job —
 # onboarding prose — and lives at a different path, so the two never collide.
 #
-# Still withheld, pending #137:
+# `overview.md` ships too: the orientation read first. Everything it points at
+# that is not provisioned — the loop's methodology, `concepts/`, this repo's
+# `docs/` — is an absolute URL, and `test_provisioned_links_resolve` keeps it so.
 #
-#   * methodology.md — not a diverged peer but a stale snapshot of the loop's
-#     `docs/methodology.md`: no line of its own, false in places the loop has
-#     since corrected. Provisioning it would lay a second, older gate-cycle
-#     document beside the loop's. The proposal is to make the loop its one owner.
-#   * overview.md — correct, but 8 of its 11 relative links point at files that
-#     are not provisioned (methodology.md ×4, concepts/, this repo's docs/ ×3). It
-#     ships once those are absolute. `test_provisioned_links_resolve` holds that line.
-PROVISIONED_SUBTREES = ("rules", "schemas", "glossary.md")
+# Deliberately absent: `methodology.md`. Decided in #137, the gate-cycle contract
+# is owned by the loop, which authors it and ships it as
+# `.specfuse/docs/methodology.md`. Core's copy was a stale snapshot of it — no
+# line of its own, and false where the loop had since corrected it — so it was
+# deleted rather than provisioned. `concepts/` is repository reading and stays
+# unprovisioned.
+PROVISIONED_SUBTREES = ("rules", "schemas", "glossary.md", "overview.md")
 
 
 class MethodologyMissingError(RuntimeError):

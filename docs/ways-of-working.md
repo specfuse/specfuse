@@ -16,7 +16,7 @@ rather than restates.
 - The state machines and where each unit lives: [`unit-lifecycles.md`](unit-lifecycles.md)
 - Commands, by lifecycle phase: [loop `docs/skills.md`](https://github.com/specfuse/loop/blob/main/docs/skills.md)
 - A narrated end-to-end run: [loop `docs/getting-started.md`](https://github.com/specfuse/loop/blob/main/docs/getting-started.md)
-- The contracts underneath: [`methodology/methodology.md`](../methodology/methodology.md)
+- The gate-cycle contract underneath, owned by the loop: [loop `docs/methodology.md`](https://github.com/specfuse/loop/blob/main/docs/methodology.md)
 - Orientation, if you are new: [`methodology/overview.md`](../methodology/overview.md)
 
 ---
@@ -78,7 +78,7 @@ How to run it:
 4. **Then `/specfuse:arm-gate`** — accept / revise / reject each drafted unit.
 
 Arming is deliberately not automated, except under `auto` mode and only when
-every safety condition holds at once ([`methodology.md` §9](../methodology/methodology.md)).
+every safety condition holds at once ([loop `methodology.md` §9](https://github.com/specfuse/loop/blob/main/docs/methodology.md#9-autonomy)).
 Even then it never auto-merges.
 
 ## 4. Per feature — planning and wrapping

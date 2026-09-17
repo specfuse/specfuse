@@ -97,7 +97,7 @@ class TestDocLinks(unittest.TestCase):
         self.assertGreater(len(files), 5,
                            "found almost no markdown — the walk or SKIPPED_DIRS is wrong")
         names = {f.relative_to(ROOT).as_posix() for f in files}
-        for expected in ("README.md", "methodology/methodology.md"):
+        for expected in ("README.md", "methodology/overview.md"):
             self.assertIn(expected, names, f"{expected} must be among the scanned files")
 
     def test_every_relative_link_resolves(self):

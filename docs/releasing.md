@@ -136,15 +136,19 @@ to `specfuse/_methodology/` at build time so a wheel can carry it. That mirror i
 gitignored: generated, never committed, so there is no second copy to edit by
 mistake.
 
-`specfuse init` / `upgrade` lay **`rules/`, `schemas/` and `glossary.md`** down
-in `.specfuse/methodology/`, which is **this** upgrader's slot. The wheel carries
-the whole substrate; only that subset is provisioned. The glossary is core's own
-cross-surface reference and does not collide with the loop's onboarding glossary
-at `.specfuse/docs/glossary.md`. `methodology.md` is held back because core's copy
-is a stale snapshot of the loop's, and `overview.md` because most of its relative
-links point at files that are not provisioned. Tracked in #137; releasing either
-is a change to `PROVISIONED_SUBTREES`, not to packaging, and
-`test_provisioned_links_resolve` refuses a release whose links would dangle.
+`specfuse init` / `upgrade` lay **`rules/`, `schemas/`, `glossary.md` and
+`overview.md`** down in `.specfuse/methodology/`, which is **this** upgrader's
+slot. The wheel carries the whole substrate; `concepts/` is the only part not
+provisioned. The glossary is core's own cross-surface reference and does not
+collide with the loop's onboarding glossary at `.specfuse/docs/glossary.md`.
+`test_provisioned_links_resolve` refuses a release in which a provisioned file
+links to something that is not provisioned.
+
+There is no `methodology.md` here. The gate-cycle contract is **owned by the
+loop** (decided in #137): the loop authors it and ships it as
+`.specfuse/docs/methodology.md`. Core carried a copy that had become a stale
+snapshot, and it was deleted rather than kept in step. Link to the loop's
+published copy instead.
 
 `.specfuse/rules/` and `.specfuse/schemas/` belong to `loop-init`; the manifest's
 invariant is one writer per install path, and the separate `.specfuse/methodology/`
