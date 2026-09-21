@@ -170,16 +170,17 @@ class TestProvisionedSubset(unittest.TestCase):
     # from a core checkout with uncommitted changes to a vendored file. This
     # test remains the backstop for everything that guard cannot see.
     #
-    # Current entry, which meets that bar:
+    # Currently empty, which is the intended resting state.
     #
-    #   * rules/correlation-ids.md — core reworded line 13 when the loop became
-    #     the owner of methodology.md (#137): the rule no longer claims
-    #     methodology.md is "in this shared substrate set". Core is right; the
-    #     loop's vendored copy still carries the old line. Clears when the loop
-    #     re-vendors (specfuse/loop#3336) and a loop release carries it —
-    #     `test_no_scaffold_waiver_outlives_its_cause` fails that day, which is
-    #     the signal to delete this entry.
-    KNOWN_SCAFFOLD_DIVERGENCES: set[str] = {"rules/correlation-ids.md"}
+    # The last entry was rules/correlation-ids.md: core reworded line 13 when
+    # the loop became the owner of methodology.md (#137), and the loop's
+    # vendored copy still carried the old line. That entry named its own
+    # expiry — "clears when the loop re-vendors (specfuse/loop#3336) and a loop
+    # release carries it — `test_no_scaffold_waiver_outlives_its_cause` fails
+    # that day, which is the signal to delete this entry". specfuse-loop
+    # 0.22.1 carries the re-vendored rule, the guard failed exactly as
+    # written, and the entry is deleted. Every publish PR was blocked on it.
+    KNOWN_SCAFFOLD_DIVERGENCES: set[str] = set()
 
     def _scaffold_seed(self) -> Path:
         try:

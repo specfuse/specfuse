@@ -888,6 +888,74 @@ class TestDoctor(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("no shims to check", out.getvalue())
 
+    def test_dispatched_slash_commands_are_preflighted(self):
+        """specfuse/loop#3370: the loop shipped a preflight for the commands
+        the headless lanes dispatch, and put it in `scaffold.doctor()` — which
+        has no caller and is a standing caller-ratchet BASELINE entry. The
+        command a user runs is this one, and it never reached that check.
+
+        The check exists to catch specfuse/loop#3342: a bug lane dispatched
+        `/fix-bug` against 55 issues and got `Unknown command` back from every
+        one. Shipping it unreachable means the next occurrence is caught by
+        nothing while the CHANGELOG says otherwise.
+        """
+        orig_managed, orig_diag = cli._managed_by_tool, cli.diagnose_shims
+        orig_cmds = scaffold.dispatched_skill_commands
+        orig_resolve = scaffold.resolve_slash_command
+        cli._managed_by_tool = lambda: True
+        cli.diagnose_shims = lambda: []
+        scaffold.dispatched_skill_commands = lambda: {"bug lane": "/specfuse:fix-bug"}
+        scaffold.resolve_slash_command = lambda cmd, target, **kw: (
+            False, "plugin 'specfuse' is not enabled for this project"
+        )
+        err, out = io.StringIO(), io.StringIO()
+        cwd = os.getcwd()
+        tmp = tempfile.mkdtemp()
+        (Path(tmp) / ".specfuse").mkdir()
+        os.chdir(tmp)
+        try:
+            with redirect_stderr(err), redirect_stdout(out):
+                rc = cli.cmd_doctor(_args())
+        finally:
+            os.chdir(cwd)
+            cli._managed_by_tool, cli.diagnose_shims = orig_managed, orig_diag
+            scaffold.dispatched_skill_commands = orig_cmds
+            scaffold.resolve_slash_command = orig_resolve
+        combined = err.getvalue() + out.getvalue()
+        self.assertIn("/specfuse:fix-bug", combined)
+        self.assertIn("bug lane", combined)
+        self.assertIn("not enabled", combined)
+        self.assertEqual(
+            rc, 1,
+            "a lane that cannot dispatch is as broken as a missing shim — "
+            "doctor must exit non-zero, or a preflight nobody acts on is the "
+            "same as no preflight",
+        )
+
+    def test_resolvable_commands_are_reported_as_such(self):
+        orig_managed, orig_diag = cli._managed_by_tool, cli.diagnose_shims
+        orig_cmds = scaffold.dispatched_skill_commands
+        orig_resolve = scaffold.resolve_slash_command
+        cli._managed_by_tool = lambda: True
+        cli.diagnose_shims = lambda: []
+        scaffold.dispatched_skill_commands = lambda: {"bug lane": "/specfuse:fix-bug"}
+        scaffold.resolve_slash_command = lambda cmd, target, **kw: (True, "")
+        out = io.StringIO()
+        cwd = os.getcwd()
+        tmp = tempfile.mkdtemp()
+        (Path(tmp) / ".specfuse").mkdir()
+        os.chdir(tmp)
+        try:
+            with redirect_stdout(out):
+                rc = cli.cmd_doctor(_args())
+        finally:
+            os.chdir(cwd)
+            cli._managed_by_tool, cli.diagnose_shims = orig_managed, orig_diag
+            scaffold.dispatched_skill_commands = orig_cmds
+            scaffold.resolve_slash_command = orig_resolve
+        self.assertEqual(rc, 0)
+        self.assertIn("dispatched command", out.getvalue().lower())
+
     def test_problems_exit_nonzero_and_name_the_command(self):
         orig_managed, orig_diag = cli._managed_by_tool, cli.diagnose_shims
         cli._managed_by_tool = lambda: True
