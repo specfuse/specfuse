@@ -764,6 +764,53 @@ def _report_deprecated(shim_dir: Path | None = None) -> None:
         print(f"  {flat} -> specfuse {ALIAS_TO_SUBCOMMAND[flat]}")
 
 
+def _preflight_dispatched_commands() -> list:
+    """The slash commands the headless lanes dispatch, and whether they resolve.
+
+    Returns `[(label, command, why)]` for the ones that do not.
+
+    The loop owns *which* commands its lanes dispatch and *why* one fails —
+    `scaffold.dispatched_skill_commands` reads each lane's own `DEFAULT_COMMAND`
+    rather than a hand-maintained list, so a third lane is covered without an
+    edit here. This function owns only the reporting, because "does this command
+    resolve to this install" is the question `doctor` already answers for
+    console scripts.
+
+    It lives here rather than in `scaffold.doctor()` (specfuse/loop#3370): that
+    function has no caller and is a standing caller-ratchet BASELINE entry in
+    the loop, so a preflight added to it shipped unreachable while the changelog
+    said `specfuse doctor` performed it. The check exists to catch
+    specfuse/loop#3342 — a bug lane that dispatched `/fix-bug` against 55 issues
+    and got `Unknown command` back from every one — and a preflight nobody
+    reaches is the same as no preflight.
+
+    Never raises: a diagnosis that dies on its own probe is worse than one that
+    reports nothing.
+    """
+    if not (Path.cwd() / ".specfuse").is_dir():
+        # Not a specfuse project: there is nothing here whose lanes dispatch,
+        # so "no command resolves" is noise rather than a finding. Returning
+        # empty keeps `doctor` usable from any directory — it is also a shim
+        # diagnostic, and that half does not need a project.
+        return []
+
+    try:
+        commands = scaffold.dispatched_skill_commands()
+    except Exception as exc:  # noqa: BLE001 - a diagnosis never dies on a probe
+        return [("dispatched lanes", "<unknown>",
+                 f"could not be enumerated — {type(exc).__name__}: {exc}")]
+
+    unresolved = []
+    for label, command in sorted(commands.items()):
+        try:
+            resolves, why = scaffold.resolve_slash_command(command, Path.cwd())
+        except Exception as exc:  # noqa: BLE001
+            resolves, why = False, f"check raised — {type(exc).__name__}: {exc}"
+        if not resolves:
+            unresolved.append((label, command, why))
+    return unresolved
+
+
 def cmd_doctor(args: argparse.Namespace, *, runner=None) -> int:
     """Report suite commands whose PATH shim is missing, stale, orphaned, or owned
     by a different install. Exits 1 when anything is still wrong so CI can gate on
@@ -781,9 +828,22 @@ def cmd_doctor(args: argparse.Namespace, *, runner=None) -> int:
     if not getattr(args, "no_network", False):
         report_outdated_components()
 
+    # Ahead of the not-tool-managed early return, for the same reason the
+    # staleness advisory is: a plain-venv install still has lanes that
+    # dispatch, and is no less able to dispatch a command that resolves
+    # nowhere (specfuse/loop#3342).
+    dispatch_problems = _preflight_dispatched_commands()
+    if dispatch_problems:
+        print(f"specfuse: {len(dispatch_problems)} dispatched command(s) do "
+              f"not resolve in this project:", file=sys.stderr)
+        for label, command, why in dispatch_problems:
+            print(f"  {label}: {command}\n    {why}", file=sys.stderr)
+
     if not _managed_by_tool():
         print("specfuse: not a pipx/uv-managed install — this environment puts "
               "its scripts on PATH directly, so there are no shims to check.")
+        _report_deprecated()
+        return 1 if dispatch_problems else 0
         return 0
     problems = diagnose_shims()
 
@@ -801,11 +861,19 @@ def cmd_doctor(args: argparse.Namespace, *, runner=None) -> int:
         else:
             print("specfuse: nothing to remove — no dead shims among the findings.")
 
-    if not problems:
+    if not problems and not dispatch_problems:
         print(f"specfuse: all suite commands resolve to this install "
               f"({_venv_bin()}).")
+        print("specfuse: every dispatched command resolves in this project.")
         _report_deprecated()
         return 0
+
+    # A lane that cannot dispatch is as broken as a missing shim and fails far
+    # more expensively: every item it touches is escalated and labelled for a
+    # defect that has nothing to do with it. Already reported above.
+    if not problems:
+        _report_deprecated()
+        return 1
     print(f"specfuse: {len(problems)} command(s) do not resolve to this install:",
           file=sys.stderr)
     for command, problem, fix, _kind in problems:
