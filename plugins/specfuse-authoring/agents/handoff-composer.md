@@ -10,7 +10,7 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 
 # handoff-composer -- Sub-Agent Definition
 
-Composes a producer-side handoff manifest at `api/docs/handoffs/<correlation-id>.md` per the consumer contract defined in the project's orchestrator (typically `../orchestrator/project/specs-handoff-contract.md`). This is the structured-Markdown counterpart to `scenario-architect` (which produces Arazzo YAML): both are creative-but-strict generators with a fixed input/output contract, both refuse to invent identifiers their inventory does not declare, and both delegate user interaction to a calling command.
+Composes a producer-side handoff manifest at `api/docs/handoffs/<correlation-id>.md` per the consumer contract defined in the project's orchestration repo (`<orchestrator>/project/specs-handoff-contract.md`, where `<orchestrator>` is supplied by the calling command — never assumed to be a sibling). This is the structured-Markdown counterpart to `scenario-architect` (which produces Arazzo YAML): both are creative-but-strict generators with a fixed input/output contract, both refuse to invent identifiers their inventory does not declare, and both delegate user interaction to a calling command.
 
 **Authoritative rules:** the project's `specs-handoff-contract.md` -- if anything in this file contradicts the consumer contract, the contract wins. Local conventions: `coordination-conventions.md` §2 (operation classification), §7 (async classification), §10 (direction-of-reference rule).
 
@@ -43,7 +43,7 @@ The `/prepare-handoff` command MUST provide the following context. Missing requi
 | `sourceCommit` | Output of `git rev-parse --short HEAD` captured at production time, AFTER the user has staged the in-scope spec changes. |
 | `producedAt` | ISO 8601 UTC timestamp at production time. |
 | `producerLabel` | Identifier of the calling command + version, e.g., `/prepare-handoff v0.1`. Goes into §1 "Producer". |
-| `registryEntryPath` | Path to the orchestrator registry entry, e.g., `../orchestrator/features/FEAT-2026-0001.md`. Referenced in §1 for traceability. |
+| `registryEntryPath` | Optional. Where the orchestration repo's registry entry WILL live, for §1 traceability — supplied by the caller, never assumed from a sibling layout. Under #117 this skill's caller does not create that entry: the orchestration repo writes it on receipt, so this may be absent and §1 then records the authoring feature id alone. |
 | `scopePaths` | Confirmed list of `api/specs/v1/**` paths the feature touches (from the command's scope-confirmation gate). |
 | `scenarioInventory` | List of objects: `{specPath, renderedDocPath, status (new/changed/referenced-only), tags[]}` for each scenario file relevant to the feature. |
 | `operationInventory` | List of objects: `{specPath, httpMethod, operationId, xOperationCategory (or null), classification (auto-generated/hand-crafted)}` for each touched OpenAPI operation. The producer extracts `operationId` and `x-operation.category` by descending into the HTTP-method root key (operation files are HTTP-method-keyed YAML). Pre-classified per `coordination-conventions.md` §2: absent `x-operation` or `category == aggregate` → auto-generated; everything else → hand-crafted. |
@@ -143,8 +143,10 @@ The agent MUST have access to (provided by the calling command or read directly)
 
 | Source | Path | Purpose |
 |---|---|---|
-| Consumer contract | `../orchestrator/project/specs-handoff-contract.md` | Authoritative section list, formats, freshness rules |
-| Coordination conventions | `../orchestrator/project/coordination-conventions.md` | §2 operation classification, §7 async classification, §10 direction-of-reference |
+| Consumer contract | `<orchestrator>/project/specs-handoff-contract.md` | Authoritative section list, formats, freshness rules |
+| Coordination conventions | `<orchestrator>/project/coordination-conventions.md` | §2 operation classification, §7 async classification, §10 direction-of-reference |
+
+`<orchestrator>` is supplied by the calling command, not assumed. Both files are **authored per project** by the orchestration repo's onboarding agent — Specfuse ships neither — so "absent" and "wrong path" are different failures and must be reported as such.
 
 ### Read on demand
 
