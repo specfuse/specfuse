@@ -1,6 +1,6 @@
 ---
 name: ideation-capture
-description: "Capture a candidate initiative into the ideation backlog -- one index row plus a stub dossier under docs/product/backlog/, both at state `idea`. The frictionless pre-intake entry point that records an idea so it is never lost. Use before any INIT- is minted; deliberately low-ceremony with no interrogation, no readiness assessment, and no orchestrator-repo write."
+description: "Capture a candidate initiative into the ideation backlog -- one index row plus a stub dossier under docs/product/backlog/, both at state `idea`. Accepts a typed title or --from-issue <url>, the intake path for ideas submitted by people outside a kit-configured project. The frictionless pre-intake entry point that records an idea so it is never lost. Use before any INIT- is minted; deliberately low-ceremony with no interrogation, no readiness assessment, and no orchestrator-repo write."
 ---
 
 <!--
@@ -45,13 +45,30 @@ Out of scope:
 - **Shaping, interrogating, or assessing readiness** — the `ideation-shape` skill.
 - **Minting an `INIT-` id or creating a registry** — the `initiative-intake` skill;
   capture never touches the orchestrator repo.
-- **Triage / reprioritization** — the `backlog-groom` skill.
+- **Triage / reprioritization** — the `ideation-groom` skill.
 
 ## Inputs
 
-1. A title (required) and any free-form blurb the human offers.
+1. A title (required) and any free-form blurb the human offers — **or** `--from-issue <url>`, below.
 2. `docs/product/INITIATIVE_BACKLOG.md` — to read the max `IDEA-NNN` and append.
 3. `docs/product/backlog/` — the dossier folder (created if absent).
+
+### `--from-issue <url>` — capture an idea somebody filed on GitHub
+
+The intake path for people outside a kit-configured project: anyone in the company opens an ordinary issue, someone labels it, and it lands in the backlog.
+
+**The artifacts are identical to a typed capture** — one `idea`-state row, one stub dossier from the same template, the same `IDEA-NNN` allocation. The only difference is where the text came from, which is why this is a source parameter on this skill rather than a skill of its own.
+
+- Read the issue's title and body. The title seeds the row and the dossier heading; the body goes in **Context & motivation** verbatim, attributed, and is not paraphrased — capture does not interrogate, and it does not editorialise someone else's words either.
+- Require the label from `github.ideas.label` (default `specfuse:idea`). An unlabelled issue is not a submitted idea, and capturing one is how an unrelated bug report becomes a backlog row nobody can explain.
+- Record the issue URL in the dossier's `issue:` field, and comment the allocated `IDEA-NNN` back on the issue so the submitter can follow it.
+- **Idempotent.** If any dossier already carries this `issue:` URL, say so and stop. Re-running must not mint a second `IDEA-NNN` for one submission.
+
+Reads `github.ideas.repo` and `github.ideas.label` via
+`python3 scripts/specfuse/authoring-config.py github.ideas.repo --required`.
+Unset means GitHub intake is **off**, and the reader says so naming the key — it is not a 404 and not a silent no-op.
+
+> **Bulk import is deliberately not here.** Ingesting a pre-existing issue backlog needs a pick-list, dedup against existing dossiers, and idempotency across a whole sweep. That is a batch operation, not frictionless capture, and it is not needed for a new project. If it is ever built it is `ideation-import` — never `adopt-idea`, which would mean the opposite of what it does (`adopt-feature` is *pick one and grind it*; this is *receive, and promise nothing*).
 
 ## Outputs
 

@@ -1,6 +1,6 @@
 ---
 name: prepare-handoff
-description: "Produce a feature handoff manifest under api/docs/handoffs/ per the orchestrator's consumer contract -- runs the full validation suite, regenerates scenario docs and bundles, builds operation/async/entity/scenario inventories and the prompt index, then delegates manifest composition to the handoff-composer subagent. Use when packaging a completed spec feature for downstream implementation; can autonomously mint the correlation ID."
+description: "Produce a feature handoff manifest under api/docs/handoffs/ per the orchestrator's consumer contract -- runs the full validation suite, regenerates scenario docs and bundles, builds operation/async/entity/scenario inventories and the prompt index, then delegates manifest composition to the handoff-composer subagent. Use when packaging a completed spec feature for downstream implementation. Produces one artifact in this repository and writes nothing outside it: the orchestration repo creates its registry entry and mints the INIT- on receipt."
 ---
 
 <!--
@@ -8,17 +8,15 @@ Copyright 2026 Specfuse Contributors
 Licensed under the Apache License, Version 2.0. See LICENSE.
 -->
 
-Produce a feature handoff manifest at `api/docs/handoffs/<correlation-id>.md` per the consumer contract in the project's orchestrator (typically `../orchestrator/project/specs-handoff-contract.md`). Composes existing primitives (validation, scenario doc regen, bundling, scenario impact, prompt-corpus parser) and delegates manifest composition to the `handoff-composer` sub-agent.
+Produce a feature handoff manifest at `api/docs/handoffs/<correlation-id>.md` per the consumer contract in the project's orchestration repo (`<orchestrator>/project/specs-handoff-contract.md` — see *Resolving the orchestration repo*). Composes existing primitives (validation, scenario doc regen, bundling, scenario impact, prompt-corpus parser) and delegates manifest composition to the `handoff-composer` sub-agent.
 
 *Enforces: (general — no single handbook)*
 
 **Before doing anything**, read and internalize:
 
-1. `../orchestrator/project/specs-handoff-contract.md` — authoritative section list, formats, freshness rules.
-2. `../orchestrator/project/coordination-conventions.md` — §2 operation classification, §7 async classification, §10 direction-of-reference rule.
-3. `.specfuse/methodology/rules/correlation-ids.md` — minting rules, per-year-resetting numbering.
-4. `../orchestrator/shared/templates/feature-registry.md` — registry-entry template.
-5. `../orchestrator/shared/schemas/feature-frontmatter.schema.json` — registry-entry frontmatter schema.
+1. `<orchestrator>/project/specs-handoff-contract.md` — authoritative section list, formats, freshness rules. **Authored per project** by the orchestration repo's onboarding agent; Specfuse ships `project/` with a README and nothing else. If it is absent, say so — that is a different failure from a wrong path, and it has a different remedy.
+2. `<orchestrator>/project/coordination-conventions.md` — §2 operation classification, §7 async classification, §10 direction-of-reference rule. **Authored per project**, as above.
+3. `.specfuse/methodology/rules/correlation-ids.md` — the ID format. Provisioned by `specfuse init`; resolves from this repo. **Read for the format only — this skill does not mint.**
 6. The input/output contract of the `handoff-composer` subagent (provided by the specfuse-authoring plugin) — you will delegate manifest composition to it.
 7. `api/docs/implementation-prompts/README.md` — front-matter convention for prompt files.
 
@@ -28,10 +26,36 @@ Accept ONE positional argument and optional flags:
 
 | Argument / flag | Required | Behavior |
 |---|---|---|
-| `<correlation-id>` | no | When supplied, validate format `FEAT-\d{4}-\d{4}` and use as-is. When omitted, **mint autonomously** — see §1 below. |
+| `<correlation-id>` | no | The **loop feature's own id** (`FEAT-\d{4}-\d{4}`), the feature that authored these specs. When omitted, resolved from the active feature — see §1. Never minted here. |
 | `--scope <paths>` | no | Comma-separated list of paths under `api/specs/v1/` to override scope derivation. |
 | `--since <ref>` | no | Override the diff base for scope derivation; default `origin/main`. |
-| `--dry-run` | no | Produce manifest content and registry-entry content but do not write or commit. Useful for review before live use. |
+| `--orchestrator <path>` | no | Path to the orchestration repo, overriding `repos.orchestrator` in `.specfuse/authoring/config.yml`. Reads only — this skill writes nothing outside this repository. |
+| `--dry-run` | no | Produce the manifest content but do not write or commit. Useful for review before live use. |
+
+## Resolving the orchestration repo
+
+Everything this skill **reads** outside this repository resolves from one value, `<orchestrator>`:
+
+1. `--orchestrator <path>` when supplied;
+2. else `repos.orchestrator` from `.specfuse/authoring/config.yml`
+   (`python3 scripts/specfuse/authoring-config.py repos.orchestrator`);
+3. else `../orchestrator`.
+
+**The default is a convention, not a layout requirement.** Earlier revisions hardcoded `../orchestrator/` at every call site and told a consumer whose repo was named otherwise to rename their repositories to match — which is the dependency inversion authoring #26 exists to remove, in its structural form.
+
+**Report the two failures separately.** A path that does not resolve names the key and the flag, never a repository rename. A path that resolves whose contract file is missing says *that* instead: those two files are authored per project and Specfuse ships neither, so the remedy is to run onboarding or author them, not to fix a path.
+
+## The seam: this skill produces, the orchestrator receives
+
+**This skill writes nothing outside this repository, and mints nothing.**
+
+That is a deliberate narrowing (authoring #79, resolved in #117). It used to create `<orchestrator>/features/<id>.md` through a sibling path and pick the correlation ID by globbing that directory for the highest ordinal. Both are gone:
+
+- **The write** violated the orchestration repo's own invariant that it is *a SOURCE, never a target*. The registry entry is now created by the orchestrator **on receipt** of the manifest, which is what makes the handoff a one-way artifact and means a specs repo needs no write access to the orchestration repo at all.
+- **The mint** was a distributed counter read over another repo's working tree, and the old Step 13 documented its own race (*"if the push is rejected, re-run"*). Deleting the mint deletes the race.
+- **The id is no longer this skill's to invent.** Under spec-before-mint the manifest carries the **loop feature's own id** — the feature that authored the specs. One piece of work, one id, assigned by whoever owns the registry it lands in.
+
+Both authoring paths converge here: whether the specs were written interactively or by a dispatched loop feature, the manifest is the same artifact and the seam behaves the same way.
 
 ## Process
 
@@ -39,23 +63,17 @@ Run sequentially. Stop at any **gate** that asks for user confirmation; surface 
 
 ---
 
-### Step 1: Resolve correlation ID
+### Step 1: Resolve the feature ID
 
-**If supplied:**
-- Validate format `FEAT-\d{4}-\d{4}`.
-- Compare year against `date +%Y`. Mismatch → warn but continue (historical features may legitimately need backfill); user can confirm or abort.
-- Check whether `../orchestrator/features/<correlation-id>.md` exists. If yes, treat this as a re-run (Step 11 path). If no, treat as supplied-mint and create the registry entry as part of Step 12.
+The id identifies the **loop feature that authored these specs**. This skill resolves it; it never mints it.
 
-**If omitted (autonomous mint):**
+**If supplied:** validate the format `FEAT-\d{4}-\d{4}`. Compare the year against `date +%Y`; a mismatch warns but continues, since a historical feature may legitimately need a back-filled manifest.
 
-1. Verify `../orchestrator/features/` exists. If not, STOP:
-   > Orchestrator repo not found at `../orchestrator/features/`. Cannot mint correlation ID. Confirm the sibling-path layout matches `<project>App/{orchestrator,<project>-specs}/`.
-2. Read `../orchestrator/shared/schemas/feature-frontmatter.schema.json`. If unreachable, STOP with the same shape of message.
-3. Glob `../orchestrator/features/FEAT-{currentYear}-*.md`. Extract the largest `NNNN`. Pick the next ordinal (or `0001` if none). Per-year-resetting per `correlation-ids.md`.
-4. Set `correlationId = FEAT-<year>-<NNNN>`.
-5. Defer the registry-entry write until Step 12 — production failure should not leave a phantom entry behind.
+**If omitted:** resolve it from this repo's own feature state — the active feature under `.specfuse/features/`. If none is active and none was supplied, STOP:
 
----
+> No feature ID supplied and no active feature in `.specfuse/features/`. Pass the ID of the feature whose specs this manifest describes. This skill does not mint IDs — the orchestration repo does, on receipt.
+
+**Do not check the orchestration repo for the ID, and do not glob it for the next ordinal.** Both were how this skill used to work, and both are what #79 removed. An existing manifest for the same id in `api/docs/handoffs/` is what makes this a re-run, and that is a local check.
 
 ### Step 2: Scope derivation gate
 
@@ -212,33 +230,21 @@ If `--dry-run`, print the manifest to stdout and stop here.
 
 ---
 
-### Step 12: Write artifacts
+### Step 12: Write the manifest
 
-In this order (manifest first, registry entry second — production-then-registry):
+One artifact, in this repository. Nothing is written outside it.
 
 1. Write `api/docs/handoffs/<correlation-id>.md` with the composed Markdown.
-2. If a draft was slurped in Step 10, delete `api/docs/handoffs/<correlation-id>.notes-draft.md` (the manifest is now the source of truth for §11).
-3. If the registry entry doesn't yet exist, write `../orchestrator/features/<correlation-id>.md` per `shared/templates/feature-registry.md` with minimum frontmatter:
-   ```yaml
-   ---
-   correlation_id: <correlation-id>
-   title: <featureTitle>
-   state: validating
-   ---
+2. If a draft was slurped in Step 10, delete `api/docs/handoffs/<correlation-id>.notes-draft.md` — the manifest is now the source of truth for §11.
 
-   See [handoff manifest](../../<project>-specs/api/docs/handoffs/<correlation-id>.md) for feature scope.
-   ```
-4. Validate the registry entry's frontmatter against `../orchestrator/shared/schemas/feature-frontmatter.schema.json` before writing — schema-validation failure here is a hard error.
-
----
+**There is no registry-entry write here.** The orchestration repo creates its own entry when it receives this manifest (`receive-handoff` on that side), and mints the `INIT-` then. Writing it from here would put an authoring-plane skill inside another repo's working tree, against that repo's *SOURCE, never a target* invariant, and would need write access a specs repo should not have.
 
 ### Step 13: Print summary + commit instructions
 
-Print a section-count summary and a copy-paste two-repo commit/push line:
+Print a section-count summary and a copy-paste commit/push line. **One repository** — the manifest is the whole deliverable:
 
 ```
 Manifest written: api/docs/handoffs/<correlation-id>.md
-Registry entry:   ../orchestrator/features/<correlation-id>.md
 Bundles:          output/openapi-bundled.yaml, output/asyncapi-bundled.yaml
 
 Summary:
@@ -253,9 +259,8 @@ Summary:
   §10 References:    {N} prompts
   §11 Design notes:  {N} lines (or "none")
 
-To commit and push (two repos, in order):
+To commit and push (this repository only):
 
-  # 1. <project>-specs
   git add api/docs/handoffs/<correlation-id>.md \
           output/openapi-bundled.yaml \
           output/asyncapi-bundled.yaml
@@ -263,19 +268,18 @@ To commit and push (two repos, in order):
   git commit -m "feat(<domain>): handoff manifest for <correlation-id>"
   git push
 
-  # 2. orchestrator
-  cd ../orchestrator
-  git add features/<correlation-id>.md
-  git commit -m "feat: register <correlation-id>"
-  git push
-
-If the orchestrator push is rejected (race with another producer), re-run:
-  /prepare-handoff   (no arg — will mint a fresh ordinal)
 ```
 
-The command does NOT run `git add`, `git commit`, or `git push` itself. Cross-repo writes are exactly the kind of shared-state action where a confirmation gate earns its keep — the copy-paste line preserves user control.
+The command does NOT run `git add`, `git commit`, or `git push` itself — the copy-paste line preserves user control over what lands in history. There is no second repository in this list any more: since #117 the manifest is the whole deliverable, and the orchestration repo writes its own registry entry on receipt.
 
 ---
+
+**Then tell the human what happens next**, because the manifest is only half a handoff:
+
+> Manifest published. To register the initiative, run `receive-handoff` in the
+> orchestration repo — it creates the registry entry and mints the `INIT-` from
+> this manifest. Nothing is registered until it does.
+
 
 ## Failure modes
 

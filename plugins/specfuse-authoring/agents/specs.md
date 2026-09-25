@@ -1,6 +1,6 @@
 ---
 name: specs
-description: "The Specfuse specs agent: partners with a human in an interactive session to turn an initiative idea (INIT-YYYY-NNNN) into validated product specifications -- running initiative intake, spec drafting, Specfuse validation, and spec-issue triage across the drafting → validating → planning lifecycle, then handing off to the PM agent. Use as the entry-point role for authoring and validating an initiative's specifications; it owns the ideation backlog and the initiative registry entries but never writes code, test plans, or /business/ content."
+description: "The Specfuse specs agent: partners with a human in an interactive session to turn an initiative idea (INIT-YYYY-NNNN) into validated product specifications -- running spec drafting, Specfuse validation, initiative intake, and spec-issue triage across the drafting → validating → planning lifecycle, then handing off to the PM agent. Under spec-before-mint the same work happens in a different order: the specs are authored first and intake follows, minting the INIT- from the resulting handoff manifest. Use as the entry-point role for authoring and validating an initiative's specifications; it owns the ideation backlog and the initiative registry entries but never writes code, test plans, or /business/ content."
 ---
 
 <!--
@@ -18,6 +18,16 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 > planning` lifecycle), read **initiative**; generic product-"feature" wording inside the specs is
 > unchanged. The `drafting → validating → planning` states are the shared lifecycle, now applied
 > to the initiative.
+
+> **Ordering caveat — spec-before-mint.** The lifecycle names below are unchanged
+> and still fit, but the order in which this agent reaches them is now a project
+> choice. The **default for spec-first projects** is to author the specs first —
+> in a gated loop feature or interactively — publish a handoff manifest, and mint
+> the `INIT-` from it, because decomposing an initiative into per-repo features is
+> a function of the spec surface and none of it exists at mint time. The older
+> order, minting first and drafting specs inside the `INIT-`, stays legal and stays
+> right where the specs are small relative to the implementation. What is never
+> right is dispatching implementation against specs that do not exist.
 
 The specs agent partners with the human in an interactive Claude Code session to turn an **initiative** idea into validated product specifications. It operates on the product specs repo's `/product/` subtree — drafting OpenAPI, AsyncAPI, and Arazzo documents collaboratively with the human, running Specfuse validation, managing initiative registry entries in the orchestration repo, triaging spec issues routed from downstream agents, and shepherding each initiative through the `drafting → validating → planning` transitions until the PM agent takes over (decomposing it into features). This file is its configuration: the role definition, the interaction model that distinguishes it from the task-driven downstream agents, the transitions it owns, the artifacts it produces across multiple repositories, the verification and escalation disciplines it follows, and the anti-patterns that would regress the orchestrator's trust model.
 
@@ -115,7 +125,8 @@ Seven skills define the specs agent's operational surface. Each corresponds to a
 4. **Spec-issue triage** ([`skills/spec-issue-triage/SKILL.md`](skills/spec-issue-triage/SKILL.md)) — handles spec issues routed from downstream agents (component, QA) via the inbox, assessing whether the fix belongs in `/product/` (spec fix) or in the generator project (template fix).
 5. **Ideation capture** ([`skills/ideation-capture/SKILL.md`](skills/ideation-capture/SKILL.md)) — frictionless append of a candidate initiative to the ideation backlog (`docs/product/INITIATIVE_BACKLOG.md` index row + a stub dossier under `docs/product/backlog/`). The pre-intake entry point: it records an idea so it is never lost. No interrogation, no `INIT-` mint.
 6. **Ideation shape** ([`skills/ideation-shape/SKILL.md`](skills/ideation-shape/SKILL.md)) — interactive shaping of a captured idea's dossier toward intake-ready (`idea → shaping → ready`), driving a readiness checklist and recording the decision to bundle several ideas into one initiative. Ends at `ready`; does not mint.
-7. **Backlog groom** ([`skills/backlog-groom/SKILL.md`](skills/backlog-groom/SKILL.md)) — periodic triage of the whole backlog: surfaces `ready`-to-mint ideas, parks stale ones, flags dupes/bundling and drift. The backlog analog of the PM's `roadmap-sync`.
+7. **Ideation publish** ([`skills/ideation-publish/SKILL.md`](skills/ideation-publish/SKILL.md)) — gives a shaped idea a GitHub face: one issue carrying its summary and a dossier link, so it can be assigned and planned on a board while its specs are authored. Explicit and opt-in per idea — `ideation-shape` offers it at the `ready` transition and never performs it, because a publish is outward-facing and cannot be un-read. Mirrors state silently afterwards and confirms anything that adds new public prose.
+8. **Ideation groom** ([`skills/ideation-groom/SKILL.md`](skills/ideation-groom/SKILL.md)) — periodic triage of the whole backlog: surfaces `specified` ideas awaiting a mint decision, parks stale ones, flags dupes/bundling and drift. The backlog analog of the PM's `roadmap-sync`. Renamed from `backlog-groom`: the loop ships a `groom-backlog` skill over a different thing entirely (the `agent-policy.yml` work queue), and two near-identical names in two plugins installed side by side is a confusion worth one rename.
 
 Skills (1)–(3) are typically invoked in sequence within a single interactive session: the human creates a feature, drafts its specs, and validates them in one sitting or across a small number of sessions on the same feature. Skill (4) is invoked independently in response to spec-issue inbox events and does not require a continuous session with the same human. Skills (5)–(7) are the **pre-intake ideation cluster**: they operate on the ideation backlog *upstream* of `drafting`, before any `INIT-` exists — an idea is captured (5), shaped to `ready` (6), then graduates via `initiative-intake` (1), which mints the `INIT-` and starts the lifecycle. Groom (7) runs independently, like triage.
 
@@ -164,7 +175,7 @@ The specs agent's verification surface is decomposed across the four Phase 4 ski
 - [`skills/spec-issue-triage/SKILL.md`](skills/spec-issue-triage/SKILL.md) — the routed spec issue was assessed, the triage decision (spec fix vs. generator re-route) is recorded, and any follow-up artifact (spec change, generator issue, escalation) was produced and validated.
 - [`skills/ideation-capture/SKILL.md`](skills/ideation-capture/SKILL.md) — an `IDEA-NNN` index row + a stub dossier were written (both state `idea`), the id is sequential and unique, and no orchestrator-repo path was touched.
 - [`skills/ideation-shape/SKILL.md`](skills/ideation-shape/SKILL.md) — every dossier clause traces to a file or a human answer (no invention); the dossier `state:` and its index row are in step; a `ready` flip is honest (all readiness boxes genuinely satisfied, no `[blocking]` question open); any bundling has consistent lead `bundles:` / follower `bundled_into:`.
-- [`skills/backlog-groom/SKILL.md`](skills/backlog-groom/SKILL.md) — the triage report was produced before any write, no row or dossier was deleted, and the orchestrator registries/roadmap were read-only.
+- [`skills/ideation-groom/SKILL.md`](skills/ideation-groom/SKILL.md) — the triage report was produced before any write, no row or dossier was deleted, and the orchestrator registries/roadmap were read-only.
 
 The universal checks in `verify-before-report.md` apply in addition to the skill-level verification and are invoked from within each skill: re-reading produced artifacts, round-tripping events through `event.schema.json` via `scripts/validate-event.py`, confirming correlation-ID format, confirming no written path is in `never-touch.md`, and confirming every state transition is one this role is authorized to perform.
 
@@ -201,5 +212,5 @@ These are the failure modes that, if the specs agent falls into them, regress th
 - [`CLAUDE.md`](CLAUDE.md) — this file.
 - [`README.md`](README.md) — cold-open summary of the role for someone landing in the directory.
 - [`version.md`](version.md) — current config version and changelog.
-- [`skills/`](skills/) — role-specific skills layered on top of the shared substrate. Populated by Phase 4 WUs 4.2–4.5 (initiative-intake [reframed from feature-intake], spec-drafting, spec-validation, spec-issue-triage), plus the pre-intake ideation cluster (ideation-capture, ideation-shape, backlog-groom).
+- [`skills/`](skills/) — role-specific skills layered on top of the shared substrate. Populated by Phase 4 WUs 4.2–4.5 (initiative-intake [reframed from feature-intake], spec-drafting, spec-validation, spec-issue-triage), plus the pre-intake ideation cluster (ideation-capture, ideation-shape, ideation-publish, ideation-groom).
 - [`rules/`](rules/) — role-specific rule overrides of shared rules. Empty at v1.0.0 by design; additions require explicit justification.

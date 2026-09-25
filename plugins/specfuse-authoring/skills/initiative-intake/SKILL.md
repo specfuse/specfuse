@@ -92,6 +92,37 @@ out of a sibling `../orchestrator/` checkout.
 Stopping here costs a session. Stopping partway through costs a half-written
 artifact that looks finished — which is the failure this check exists to prevent.
 
+## Two sources: a dossier, or a dossier plus a handoff manifest
+
+Intake accepts **either** shape, and the second is the default for spec-first projects.
+
+**Dossier only** — the original path, unchanged. The idea is `ready`, the specs do not exist
+yet, and they will be drafted inside this `INIT-` across `drafting → validating → planning`.
+Right where the specs are small relative to the implementation.
+
+**Dossier plus manifest** — the idea is `specified`: a loop feature authored the specs under
+gates and `prepare-handoff` published a manifest, whose path the dossier carries in `handoff`.
+Then:
+
+- the registry entry records `specs_source: <manifest path>` and the authoring feature id from
+  the dossier's `graduated_to`;
+- the initial state may skip `drafting` and `validating` — the specs are authored and
+  validated already, so `planning` is the first thing actually left to do;
+- **decomposition reads the manifest's component inventory instead of inferring one.** That is
+  the whole payoff. Splitting an initiative into per-repo features is a function of the spec
+  surface — which entities, operations, events and scopes exist — and from a dossier alone none
+  of it is knowable, so the orchestrator's opening move would be rediscovering a shape that was
+  already authored upstream under gates.
+
+**The manifest is never required.** The gate that matters is *the specs exist*, and `specified`
+already asserts it. Requiring a manifest would fail intake on a legitimately manifest-less path
+instead of saying the specs are not done.
+
+**Intake-eligible state.** `specified` for the manifest path, `ready` for the dossier-only path.
+An idea whose whole deliverable is the spec tree never reaches intake at all — it is recorded
+`delivered` and no `INIT-` is minted, because an initiative no component repo will implement is
+a registry entry that does nothing.
+
 ## Inputs from the human
 
 Three required pieces of information; the skill does not assume defaults for title or repos.
@@ -142,16 +173,21 @@ template. Frontmatter:
 ```yaml
 ---
 correlation_id: INIT-YYYY-NNNN
-state: drafting
+state: drafting          # `planning` when a handoff manifest was supplied
 involved_repos:
   - <each repo the human provided, one per line>
 autonomy_default: <the human's choice>
 feature_graph: []
+# Only when intake ran from a handoff manifest:
+specs_source: <path to the manifest, as the dossier's `handoff` records it>
+specs_authored_by: <the dossier's `graduated_to`, e.g. FEAT-2026-0002>
 ---
 ```
 
 `feature_graph` is an empty array — decomposing the initiative into dispatched features is the PM
-agent's concern after `planning`. (The frontmatter schema accepts `feature_graph` as the
+agent's concern after `planning`. **When a manifest was supplied, the PM reads its component
+inventory rather than inferring one**, which is the difference between a dispatch plan and a
+guess. (The frontmatter schema accepts `feature_graph` as the
 initiative form of the unit graph; `task_graph` is the legacy feature form.)
 
 **Body sections** carry honest placeholders — intake does not draft spec content (that is the

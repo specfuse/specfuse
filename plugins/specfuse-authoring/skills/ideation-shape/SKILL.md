@@ -1,6 +1,6 @@
 ---
 name: ideation-shape
-description: "Interactively shape a captured backlog idea into an intake-ready initiative candidate: fill its dossier, drive a four-point readiness checklist, and move it idea → shaping → ready, recording any decision to bundle several ideas into one initiative. Use between ideation-capture and initiative-intake; evidence-led (infer from files first, ask last), ends at `ready`, and does not mint the INIT-."
+description: "Interactively shape a captured backlog idea until its specs can be authored: fill its dossier, drive a four-point readiness checklist, and move it idea → shaping → ready, recording any decision to bundle several ideas into one initiative. Use between ideation-capture and spec authoring; evidence-led (infer from files first, ask last), ends at `ready`, offers to publish the idea to GitHub, and does not mint the INIT-."
 ---
 
 <!--
@@ -11,7 +11,7 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 # Specs agent — ideation-shape skill (v0.1)
 
 > **Model B (docs/naming-convention.md).** Shapes a captured backlog idea into an
-> intake-ready candidate **initiative**. Sits between `ideation-capture` (records
+> candidate **initiative** whose specs can be authored. Sits between `ideation-capture` (records
 > the idea) and `initiative-intake` (mints the `INIT-`). Interactive and
 > evidence-led; moves an item `idea → shaping → ready`.
 
@@ -123,9 +123,31 @@ follower's `bundled_into: <lead>`, and record the rationale in the lead's
 ### 6. Flip to ready (or stop at shaping)
 
 If all four readiness boxes are checked and no `[blocking]` unknown remains, set the
-dossier + row to `ready` and tell the human it is eligible for `/initiative-intake`
-(for a bundle, intake runs once on the lead and consumes every bundled dossier). If
-a box can't be checked, leave it `shaping` and name exactly what's missing.
+dossier + row to `ready`. If a box can't be checked, leave it `shaping` and name
+exactly what's missing.
+
+**`ready` means cleared to have its specs authored — not cleared to mint.** Tell
+the human both things that are now available, and that neither is done by this
+skill:
+
+1. **Author the specs.** Two paths, and both end at the same handoff manifest:
+   *interactively*, with `spec-drafting` and friends in a session; or *dispatched
+   to the loop*, as a feature whose deliverable is the spec tree (spec front-end
+   `authored` — `.specfuse/docs/methodology.md` §10). Record the feature id in the
+   dossier's `graduated_to` when one is cut. When `prepare-handoff` publishes the
+   manifest, the idea becomes `specified`, which is the intake-eligible state.
+   For a bundle, intake still runs once on the lead and consumes every bundled
+   dossier.
+2. **Offer to publish it to GitHub**, if `github.ideas.repo` is configured — so
+   the idea can be assigned and planned on a board while the specs are authored.
+   Ask; never publish on the transition. Publishing is outward-facing and cannot
+   be undone once people have seen it, and this cluster's house rule is that a
+   skill proposes and a human disposes. See `ideation-publish`.
+
+**Why the specs are not authored here.** Spec work belongs inside the gate cycle —
+human work-unit review at `arm-gate`, the validation oracle, the
+whole-tree-validates and structural-assertion rules. A backlog state offers none
+of that, which is why this skill still ends at `ready` and hands off.
 
 ### 7. Result
 
