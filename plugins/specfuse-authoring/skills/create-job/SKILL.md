@@ -198,7 +198,7 @@ x-observability:
   alertOnDlq: true
 x-subscription:                                     # REQUIRED on event-topic receivers
   name: on-{item-event-description}                 # MUST equal the operation file stem
-  # NO 'filter' — derived from messages: → Label = '{Entity}.{Action}'
+  # NO 'filter' — derived from messages: → sys.Label = '{Entity}.{Action}'
   # AND-merge tenant scoping via requiredHeaders: { tenantId: '<guid>' } if needed
 ```
 
