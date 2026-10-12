@@ -82,7 +82,7 @@ x-observability:
 x-subscription:                                     # REQUIRED on event-topic receivers
   name: on-{event-description}                      # MUST equal the operation file stem
   # NO 'filter' field — filters are derived from messages: above.
-  # Generator emits: Label = '{Entity}.{Action}'  (or OR-chain for multi-message subscribers)
+  # Generator emits: sys.Label = '{Entity}.{Action}'  (or OR-chain for multi-message subscribers)
   # AND-merge tenant/channel scoping via requiredHeaders:
   #   requiredHeaders: { tenantId: '<guid>' }      → AND user.tenantId = '<guid>'
   #   requiredHeaders: { channel: email }          → AND user.channel = 'email' (requires x-envelope-promote on snapshot field)
