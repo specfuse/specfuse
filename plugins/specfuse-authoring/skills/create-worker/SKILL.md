@@ -146,9 +146,14 @@ x-ai:
     reads: [{Entity1}, {Entity2}]
     creates: [{Entity3}]
     updates: [{Entity4}]
+  dataHandling:
+    personalData: {true|false}
+    providerRegion: {CA}   # ISO 3166-1 alpha-2; required when personalData: true
 ```
 
 **MANDATORY cross-check:** every entity listed must have the corresponding `aiAccess.operations` in its OpenAPI `x-entity`. If not, stop and flag to the user before proceeding.
+
+**Declare `dataHandling`** whenever the worker reads or creates an entity holding personal data (any classified property). Ask the user for the provider region rather than guessing: it is a residency promise. Tell them that the generated worker will refuse to start until `<PREFIX>_PRIMARY_PROVIDER_REGION` is set at deploy time (`AsyncAPI_Handbook.md` §4.3).
 
 ### Step 6: Update OpenAPI operations (if event is API-triggered)
 
@@ -184,5 +189,6 @@ Fix any errors before presenting the result.
 - [ ] Root `asyncapi.yaml` updated with new channels and operations
 - [ ] Flow documentation created/updated
 - [ ] AI workers have `x-ai.entities` cross-checked against `aiAccess`
+- [ ] AI workers that touch personal data declare `x-ai.dataHandling`, with `providerRegion` when `personalData: true`
 - [ ] No removed v1 extensions used
 - [ ] Validation passes with 0 errors
