@@ -133,9 +133,12 @@ skill:
 1. **Author the specs.** Two paths, and both end at the same handoff manifest:
    *interactively*, with `spec-drafting` and friends in a session; or *dispatched
    to the loop*, as a feature whose deliverable is the spec tree (spec front-end
-   `authored` — `.specfuse/docs/methodology.md` §10). Record the feature id in the
-   dossier's `graduated_to` when one is cut. When `prepare-handoff` publishes the
-   manifest, the idea becomes `specified`, which is the intake-eligible state.
+   `authored` — `.specfuse/docs/methodology.md` §10). When one is cut, record its
+   id in the dossier's `graduated_to` and the day it started in `started`
+   (`YYYY-MM-DD`), in the same edit. If that feature is abandoned and another
+   started, repoint `graduated_to` and keep the first `started`. When
+   `prepare-handoff` publishes the manifest, the idea becomes `specified`, which is
+   the intake-eligible state.
    For a bundle, intake still runs once on the lead and consumes every bundled
    dossier.
 2. **Offer to publish it to GitHub**, if `github.ideas.repo` is configured — so
