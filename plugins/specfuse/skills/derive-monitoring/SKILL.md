@@ -133,9 +133,24 @@ diverging into two different things.
 ### Step 2 — Diagnosability audit
 
 Audit the discovered components against
-`.specfuse/rules/design-for-diagnosis.md` (T04)'s four properties: correlation-ID
+`.specfuse/rules/design-for-diagnosis.md` (T04)'s five properties: correlation-ID
 propagation, structured logging, per-component role names matching
-`monitoring.yml`, and DLQ failure-context capture. **Findings are reported as
+`monitoring.yml`, heartbeat emission, and DLQ failure-context capture. The
+`heartbeat-emission` property is per-component: any component Step 1 gives
+`heartbeat` targets (it has discovered schedules) must show, in its own code,
+an emission of the rule's heartbeat event — a `ScheduleHeartbeat` custom event
+carrying the schedule's name in a `scheduleName` property, under the
+component's role name. The marker to search for is that event name unless the
+project's pattern table names its own emitter. A component with heartbeat
+targets and no emission gets a `heartbeat-emission` finding: without it, every
+target reports as a silent schedule from the check's first run. The `version-stamping` property is per-component: an HTTP-serving component must
+show, in its own scope, evidence of a service version that changes on every
+deployment (the markers come from the project's `version_stamping_markers`
+pattern table; discovery cannot tell a build-injected stamp from a constant
+string, so the table must name only per-deployment stamp mechanisms). With
+evidence, Step 2's mapping also proposes `http-status-regression` with
+`deploy_signal: {kind: app-version}` and a `window_after_deploy`; without it, no
+check is proposed and the component gets one `version-stamping` finding. **Findings are reported as
 `WARN`, never `ERROR`.** A populated codebase that predates the design-for-diagnosis
 rule violates it everywhere by construction, so an `ERROR` predicate would be
 unsatisfiable on real input and would force the operator to fix unrelated
@@ -198,6 +213,43 @@ never asked about.
 would-be question becomes an explicit `[gap]` line in the reconciliation report
 rather than a guess. Silence is never permission to invent an environment, a
 provider name, a credential name, or an `invariant` query.
+
+### Step 3b — Credential reuse audit
+
+Once Step 3 has produced the credential environment-variable names for every
+binding, check each one against the target repo for a `credential-reuse`
+finding: **the monitor is a separate process and must not reuse the
+application's own credentials.** An application's broker connection string
+typically carries send and manage rights where a monitor that peeks a DLQ needs
+listen only; a monitor pointed at the application's variable inherits all of
+it.
+
+For each name, search the target repo — excluding `.specfuse/` itself — for the
+application reading the same variable:
+
+- code env reads: `os.environ` / `os.getenv`, `process.env`,
+  `Environment.GetEnvironmentVariable`, `System.getenv`;
+- `.env` files, compose `environment:` blocks, Helm / Kubernetes `env:` blocks;
+- Bicep / Terraform app settings;
+- for a `Section__Key` name, the `Section` → `Key` path in `appsettings*.json`
+  (the `__` separator is how .NET configuration spells `Section:Key` in an
+  environment variable, so the application reads it without ever naming the
+  variable).
+
+Each hit is a `credential-reuse` finding in the reconciliation report, with the
+`file:line` evidence, a suggested monitor-only variable name (e.g.
+`MONITOR_<NAME>`), and a pointer to `.specfuse/monitoring-secrets-checklist.md`
+for provisioning a separate read-only credential under it (e.g. a Listen-only
+shared access policy on a Service Bus namespace). **This is a heuristic.** It
+matches the name as written; it misses indirect reads — a name built at runtime,
+a prefix-stripping configuration provider, a secret mounted under another name —
+so a clean result is not proof the credential is monitor-only. Like the
+diagnosability audit, every finding is **`WARN`, never `ERROR`**: a project that
+predates this advice reuses its application credentials by construction, and
+the point is to surface the choice at authoring time, while the operator can
+still pick a different variable — never to block the draft. The reference
+behaviour is `audit_credential_reuse(tree, credential_names, patterns)` in
+`tests/test_derive_monitoring_discovery.py`.
 
 ### Step 4 — Output
 
@@ -312,13 +364,17 @@ components:
 #### 4c. A filled-in reading of `monitoring-secrets-checklist.md`
 
 One line per credential environment-variable name used above, naming where
-the operator obtains its value. Names only, never values.
+the operator obtains its value. Names only, never values. A name with a
+`credential-reuse` finding (Step 3b) says so on its line and points at the
+suggested monitor-only name and its separately provisioned read-only
+credential.
 
 #### 4d. The reconciliation report
 
 A per-component, per-check readout stating whether each line came from
 evidence (naming the file) or from an answer to one of Step 3's questions,
-plus the diagnosability audit's `WARN` findings:
+plus the diagnosability audit's and the credential reuse audit's `WARN`
+findings:
 
 ```
 # Reconciliation report for <target-repo-name>
@@ -329,6 +385,12 @@ plus the diagnosability audit's `WARN` findings:
 
 ## Diagnosability audit (WARN only)
 - <component>: <property> — <finding, or "none">
+
+## Credential reuse (WARN only, heuristic)
+- <ENV_VAR_NAME>: credential-reuse — read by the application at <file:line>[, ...];
+  suggest <MONITOR_ENV_VAR_NAME>, provisioned read-only per
+  .specfuse/monitoring-secrets-checklist.md — or "none found (heuristic;
+  indirect reads are not detected)"
 
 ## Questions and answers
 - Q1: <question> → A: <answer> → shaped <field>.
@@ -353,10 +415,12 @@ holds for CI discovery:
 | 1 check suggestion | `suggest_checks(component)` — generic, conservative | none — the function takes no stack input |
 | 2 diagnosability audit | `audit_diagnosability(tree, components, patterns)` — generic | the `patterns["diagnosability"]` marker table |
 | 3 ask | Generic | — |
+| 3b credential reuse audit | `audit_credential_reuse(tree, credential_names, patterns)` — generic | `patterns["credential_reuse"]`: the hierarchical config files to resolve `Section__Key` names in |
 | 4 output | Generic | — |
 
 Adding a new stack's evidence vocabulary is a new pattern table, never a change to
-`discover_components`, `suggest_checks`, or `audit_diagnosability` themselves —
+`discover_components`, `suggest_checks`, `audit_diagnosability`, or
+`audit_credential_reuse` themselves —
 see `tests/test_derive_monitoring_discovery.py`'s boundary tests.
 
 ## What this skill does *not* do
