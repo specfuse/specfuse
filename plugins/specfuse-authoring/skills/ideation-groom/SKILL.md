@@ -1,6 +1,6 @@
 ---
 name: ideation-groom
-description: "Periodically triage the whole initiative ideation backlog -- surfacing ideas whose specs are authored and awaiting a mint decision, parking stale ones, and flagging internal dupes, items overtaken by minted work, under-shaped entries, bundle drift, and orphaned dossiers. The backlog analog of the PM's roadmap-sync: report-first, read-mostly (orchestrator registries/roadmap read-only), writing only the backlog index and never deleting a row or dossier."
+description: "Periodically triage the whole initiative ideation backlog -- surfacing ideas whose specs are authored and awaiting a mint decision, parking stale ones, and flagging internal dupes, items overtaken by minted work, under-shaped entries, bundle drift, undated feature starts, and orphaned dossiers. The backlog analog of the PM's roadmap-sync: report-first, read-mostly (orchestrator registries/roadmap read-only), writing only the backlog index and never deleting a row or dossier."
 ---
 
 <!--
@@ -20,10 +20,10 @@ wins and this file is wrong.** Raise an escalation rather than reconciling silen
 
 ## Purpose
 
-Walk the whole backlog and produce a triage report: which items are `ready` to mint,
+Walk the whole backlog and produce a triage report: which items are ready to mint,
 which are stale, which duplicate each other or already-minted initiatives, and which
 should be `parked` or `dropped`. On accept, apply the low-risk hygiene fixes
-(reprioritize order, merge obvious dupes, park stale items). Surfacing `ready` items
+(reprioritize order, merge obvious dupes, park stale items). Surfacing mint-ready items
 for `initiative-intake` is the skill's highest-value output.
 
 ## Scope
@@ -39,7 +39,7 @@ In scope:
 Out of scope:
 
 - **Publishing or un-publishing an idea** — `ideation-publish` owns that, and it asks first. Groom reports drift between a dossier and its issue; it never opens, closes or edits one.
-- **Minting / intake** — `ready` items are *surfaced*, not minted. Graduation is the
+- **Minting / intake** — mint-ready items are *surfaced*, not minted. Graduation is the
   human running the `initiative-intake` skill.
 - **Shaping an item** — that is the `ideation-shape` skill;
   groom points at it for under-shaped items, doesn't do the shaping.
@@ -50,7 +50,7 @@ Out of scope:
 
 | Class | Condition | Resolution |
 |-------|-----------|------------|
-| **ready-to-mint** | item state `ready` | surface prominently; recommend `/initiative-intake` |
+| **ready-to-mint** | item state `specified`; or `ready` with no `graduated_to` (the dossier-only path, `initiative-intake` §"Two sources") | surface prominently; recommend `/initiative-intake`. A `ready` item **with** `graduated_to` is not here: its specs are still being authored |
 | **stale** | `idea`/`shaping`, untouched a long while, no momentum | recommend `parked` (auto on accept) |
 | **published/state drift** | the dossier carries an `issue:` URL and the issue disagrees with it — closed while the row says `shaping`, a status label edited by hand, an idea moved on the board | report only; a human decides which is right. **The file is authoritative for state**, so the usual fix is to re-mirror — but a human closing the issue often *meant* it, and silently reopening it would be the tool overruling the person. |
 | **`specified` and aging** | specs authored and a manifest published, and nobody has minted | report only — a human decides. The two readings are *the implementation is not wanted* (record `delivered`) and *it is stalled*. This signal is unambiguous **because** `specified` is a waypoint and never a terminus; a state that could mean both would need a heuristic to tell them apart. |
@@ -58,6 +58,7 @@ Out of scope:
 | **overtaken** | idea overlaps an already-minted `INIT-` (roadmap/registry) | recommend `dropped` with a link to the INIT |
 | **under-shaped** | `ready` box checked but dossier thin/unsupported | revert to `shaping`; point at `/ideation-shape` |
 | **bundle-drift** | dossier `bundles:`/`bundled_into:` inconsistent (lead missing a follower, follower points at non-lead, states out of step) | report; fix the row/frontmatter mismatch on accept |
+| **start-undated** | dossier has `graduated_to` set and `started` missing or `null` | report only; a human sets it. The date is the day that feature started, from wherever the project's loop records it (a restart keeps the first date). Leave it `null` and say so where no record exists — never guess one |
 | **orphan-dossier** | dossier file with no index row, or row with no dossier | report; do **not** delete — needs human/`ideation-capture` |
 | **unsorted** | rows not in priority order | reorder on accept |
 
@@ -71,7 +72,7 @@ Out of scope:
 ### 1. Gather
 
 State intent: "I will groom the initiative backlog (N ideas)." Read every index row,
-every dossier (state, `bundles`/`bundled_into`), and the orchestrator
+every dossier (state, `bundles`/`bundled_into`, `graduated_to`/`started`), and the orchestrator
 roadmap/registries.
 
 > **When the orchestrator is not reachable, degrade — do not stop.** Those reads
@@ -93,7 +94,7 @@ what will change, and which items are ready to mint, before any write.
 Reorder by priority, flip stale → `parked`, record `dropped` with its one-line
 reason, and fix unambiguous `bundle-drift` (row/frontmatter mismatch). Leave
 `ready-to-mint`, `dupe-internal` (bundling is `ideation-shape`'s call), `overtaken`,
-`under-shaped`, and `orphan-dossier` for the human / sibling skill. Preserve the
+`under-shaped`, `start-undated` and `orphan-dossier` for the human / sibling skill. Preserve the
 header, table integrity, dossier files, and Notes. **Never delete a row or dossier.**
 
 ### 4. Result
@@ -104,6 +105,8 @@ purpose realized.
 
 ## Version
 
-**v0.1.** Seven triage classes. Staleness is judgment-based at v1 (no timestamp
-field); if the backlog grows enough to need it, add a `touched` field to the dossier
-frontmatter and make `stale` mechanical.
+**v0.2.** Eleven triage classes; `start-undated` is new (authoring#161), and
+`ready-to-mint` no longer counts a `ready` idea whose specs a feature is still
+authoring. Staleness is judgment-based (no timestamp field: `started` dates the
+start of authoring, not the last touch); if the backlog grows enough to need it,
+add a `touched` field to the dossier frontmatter and make `stale` mechanical.
