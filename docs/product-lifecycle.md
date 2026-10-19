@@ -70,11 +70,11 @@ stall, so both are covered in full below (§7 and §9).
 |---|---|---|---|---|---|---|
 | 1 | Capture | human + specs | product-specs repo | `/specfuse-authoring:ideation-capture` | index row + stub dossier | idea `idea` |
 | 2 | Shape | human + specs | product-specs repo | `/specfuse-authoring:ideation-shape` | filled dossier, readiness checklist | idea `shaping` → `ready` |
-| 3 | Groom | specs | product-specs repo | `/specfuse-authoring:backlog-groom` | triage report | (`parked` / `dropped` as needed) |
+| 3 | Groom | specs | product-specs repo | `/specfuse-authoring:ideation-groom` | triage report | (`parked` / `dropped` as needed) |
 | 4 | Mint | specs | orchestrator repo | `/specfuse-authoring:initiative-intake` | `INIT-YYYY-NNNN` registry entry, `initiative_created` | initiative `drafting` |
 | 5 | Draft | human + specs | product-specs repo | `/specfuse-authoring:spec-drafting`, `design-scenario`, `design-async`, `design-recipe` | OpenAPI / AsyncAPI / Arazzo under `/product/` | initiative `drafting` |
 | 6 | Validate | specs | product-specs repo | `/specfuse-authoring:validate`, `validate-async`, `validate-scenarios`, `spec-validation` | validation verdict, `validation_passed` | `drafting → validating → planning` |
-| 7 | Handoff | specs | product-specs → orchestrator | `/specfuse-authoring:prepare-handoff` | handoff manifest + registry entry | initiative `planning` |
+| 7 | Handoff | specs | product-specs repo | `/specfuse-authoring:prepare-handoff` | handoff manifest (nothing outside the specs repo) | idea `specified`, or initiative unchanged (mint first) |
 | 8 | Decompose | pm | orchestrator repo | `/specfuse-orchestrator:pm` | feature graph `INIT-…/FNN`, plan-review file | `planning → plan_review` |
 | 9 | Approve | **human** | orchestrator repo | (answer in the pm session) | approval | `plan_review → generating` |
 | 10 | Generate + dispatch | pm | orchestrator repo → GitHub | `/specfuse-orchestrator:pm` | generated code, `specfuse:feature` issues | `generating → in_progress` |
@@ -88,6 +88,17 @@ stall, so both are covered in full below (§7 and §9).
 Stages 1–3 are **pre-intake**: no correlation ID exists yet, nothing is
 committed to, and the orchestrator repo is never touched. That is the point —
 the backlog's job is to lose no idea, not to make every idea real.
+
+**Two orders, one set of stages.** The diagram and table draw the *mint-first*
+order, still right where the specs are small next to the implementation. The
+default for spec-first projects is **spec-before-mint**: 1 → 2 → author the
+specs in a loop feature under gates (5, with the design skills) → validate (6,
+the `/validate*` suite) → 7 → 4. The handoff publishes a manifest and the idea
+becomes `specified`; intake then mints from the manifest and the initiative
+starts at `planning`, so `/spec-drafting` and `/spec-validation` never run and
+the pm decomposes from a known spec surface instead of rediscovering it. The
+state machines for both orders are in
+[`unit-lifecycles.md` §3–4](unit-lifecycles.md#3-idea--idea-nnn).
 
 ---
 
@@ -109,7 +120,7 @@ inventing product intent is the failure this skill guards against. It also
 records a decision to **bundle** several ideas into one initiative (lead
 `bundles:` / follower `bundled_into:`). It stops at `ready`; it never mints.
 
-**Groom** (`/specfuse-authoring:backlog-groom`) is the periodic sweep, not part
+**Groom** (`/specfuse-authoring:ideation-groom`) is the periodic sweep, not part
 of any single idea's path: it surfaces ready-to-mint items, flips stale ones to
 `parked`, and flags internal dupes, items overtaken by minted work, under-shaped
 `ready` entries, bundle drift, and orphaned dossiers. Report-first and
@@ -144,6 +155,12 @@ registry entry exists.
 > see [`specfuse/specfuse#119`](https://github.com/specfuse/specfuse/issues/119).
 
 Once minted, flip the originating dossier to `minted`.
+
+**From a handoff manifest** (spec-before-mint, the idea is `specified`), intake
+also reads the manifest the dossier's `handoff:` points at: the registry entry
+records `specs_source:` and the authoring feature from `graduated_to:`, and the
+initiative starts at `planning` rather than `drafting`. The manifest is never
+required — `ready` stays intake-eligible for the dossier-only path.
 
 ## 5. Stage 5 — draft the specs
 
@@ -198,7 +215,9 @@ scenario docs and bundles, builds the operation / async / entity / scenario
 inventories plus the prompt index, and delegates manifest composition to the
 `handoff-composer` subagent. Output: a manifest at
 `api/docs/handoffs/<correlation-id>.md` conforming to the orchestrator's
-`project/specs-handoff-contract.md`, plus the registry entry.
+`project/specs-handoff-contract.md`. It writes nothing outside the specs repo
+and mints nothing: the id is the loop feature that authored the specs, and the
+registry entry is created on the orchestrator side, by intake, on receipt.
 
 Flags worth knowing: `--dry-run` (compose but write nothing — use it the first
 few times), `--scope <paths>` (override scope derivation), `--since <ref>`
@@ -206,9 +225,11 @@ few times), `--scope <paths>` (override scope derivation), `--since <ref>`
 
 Two things about the seam that are commonly misread:
 
-- **The mint is not the seam.** `initiative-intake` writes the orchestrator
-  registry *before* the boundary. The boundary is the `validating → planning`
-  transition — that is where ownership moves from specs to pm.
+- **The mint is not the seam.** In the mint-first order `initiative-intake`
+  writes the orchestrator registry *before* the boundary. The boundary is the
+  move to `planning` — that is where ownership moves from specs to pm. In the
+  spec-before-mint order the two coincide: intake from a manifest lands the
+  initiative directly at `planning`.
 - **Gates live in the loop, not the orchestrator.** The orchestrator owns
   initiative→feature decomposition and cross-repo ordering. It does not identify
   gates, run `plan-next`, or hold a per-gate review.
@@ -356,6 +377,15 @@ work turns out to be genuinely large. Monitoring findings get
 judgement call is size and risk, not category. See
 [`ways-of-working.md` §7](ways-of-working.md).
 
+### Specs without an orchestrator
+
+A product-specs repo can use the authoring kit with no orchestration repo at
+all: capture, shape, author, validate and generate all run in that one repo.
+What it cannot do is hand off or mint — `prepare-handoff` and
+`initiative-intake` both need the orchestration repo — so an idea there stops at
+`ready`, and today the only ending is to record `delivered` by hand. See
+[`unit-lifecycles.md` §3a](unit-lifecycles.md#3a-without-an-orchestrator).
+
 Adoption-time, once per repo: `/specfuse:derive-verification` (make the
 verification set match real CI) and `/specfuse:derive-monitoring` (if there are
 deployed components). Periodically: `/specfuse:scaffold-upgrade`,
@@ -363,9 +393,11 @@ deployed components). Periodically: `/specfuse:scaffold-upgrade`,
 
 ## 14. Known rough edges
 
-- **`prepare-handoff` assumes the sibling layout** `<project>App/{orchestrator,
-  <project>-specs}/` and reads the contract from `../orchestrator/project/`. In
-  any other layout it stops rather than guessing.
+- **`prepare-handoff` needs the orchestration repo** to read its handoff
+  contract. It resolves it from `--orchestrator`, then `repos.orchestrator` in
+  `.specfuse/authoring/config.yml`, then `../orchestrator`; when none resolves,
+  or the contract file is missing there, it stops rather than guessing. Without
+  an orchestrator there is no documented way past `ready` (§13).
 - **`initiative-intake` can be blocked by the substrate gap** described in §4.
   It fails loudly and before minting, which is the intended behavior, not a bug
   to work around.
