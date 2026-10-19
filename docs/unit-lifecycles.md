@@ -93,15 +93,20 @@ stateDiagram-v2
   [*] --> idea: /ideation-capture
   idea --> shaping: /ideation-shape (first substantive edit)
   shaping --> ready: readiness checklist genuinely satisfied
-  ready --> minted: /initiative-intake mints INIT-YYYY-NNNN
-  ready --> shaping: /backlog-groom finds it under-shaped
-  idea --> parked: /backlog-groom — stale, no momentum
-  shaping --> parked: /backlog-groom — stale, no momentum
+  ready --> specified: /prepare-handoff publishes the manifest
+  specified --> minted: /initiative-intake mints INIT-YYYY-NNNN from the manifest
+  specified --> delivered: human — the spec tree was the whole deliverable
+  ready --> minted: /initiative-intake, dossier only (mint first)
+  ready --> shaping: /ideation-groom finds it under-shaped
+  idea --> parked: /ideation-groom — stale, no momentum
+  shaping --> parked: /ideation-groom — stale, no momentum
   parked --> shaping: picked back up
   idea --> dropped: human decision (row kept, never deleted)
   shaping --> dropped
   parked --> dropped
+  ready --> dropped: /ideation-groom — overtaken by minted work
   minted --> [*]
+  delivered --> [*]
   dropped --> [*]
 ```
 
@@ -109,12 +114,40 @@ stateDiagram-v2
 |---|---|---|
 | `→ idea` | `/specfuse-authoring:ideation-capture` | frictionless; a placeholder-only dossier is valid |
 | `idea → shaping → ready` | `/specfuse-authoring:ideation-shape` | every clause traces to a file or a human answer |
-| `ready → minted` | `/specfuse-authoring:initiative-intake` | the only transition that crosses planes |
-| `→ parked`, `ready → shaping`, `→ dropped` | `/specfuse-authoring:backlog-groom` | writes the index only; never deletes a row or dossier |
+| `ready → specified` | `/specfuse-authoring:prepare-handoff` | the specs were authored and validated and a manifest is published; the dossier records it in `handoff` |
+| `specified → minted` | `/specfuse-authoring:initiative-intake` | the default, spec-before-mint path; crosses planes |
+| `ready → minted` | `/specfuse-authoring:initiative-intake` | the mint-first path, for specs small next to the implementation; crosses planes |
+| `specified → delivered` | human | spec-only work: no `INIT-` is minted for an initiative no component repo will implement |
+| `→ parked`, `ready → shaping`, `→ dropped` | `/specfuse-authoring:ideation-groom` | writes the index only; never deletes a row or dossier |
+
+`ready` means cleared to have the specs **authored**, not cleared to mint.
+Authoring is not a backlog state: it happens in a loop feature, under gates, and
+the dossier only records which feature (`graduated_to: FEAT-YYYY-NNNN`) and since
+when (`started:`). The idea stays `ready` until the manifest is published.
+`specified` is a waypoint, never a terminus — an aging `specified` row means a
+decision is owed, and `/ideation-groom` reports it.
 
 Bundling is recorded, not a state: the lead dossier carries `bundles:`, each
-follower `bundled_into:`, and the two must stay consistent. Several `ready` ideas
-can mint into one initiative.
+follower `bundled_into:`, and the two must stay consistent. Several ideas can
+mint into one initiative; every bundled row flips to `minted` with the lead.
+
+### 3a. Without an orchestrator
+
+A product-specs repo with the authoring kit but no orchestration repo
+(`repos.orchestrator` in `.specfuse/authoring/config.yml` does not resolve)
+keeps most of this machine and loses its ending:
+
+| Transition or skill | Without an orchestrator |
+|---|---|
+| capture, `idea → shaping → ready`, `→ parked`, `→ dropped` | work. `/ideation-shape` and `/ideation-groom` degrade rather than stop: overlap with minted work is reported as *not checked* / *not assessed*. |
+| authoring, validation, generation | work — the design skills, `/validate*`, `/bundle`, `/generate` run entirely in the specs repo. `/spec-drafting` and `/spec-validation` do not: they operate on a registry entry. |
+| `ready → specified` | **unavailable.** `/prepare-handoff` reads the handoff contract from the orchestration repo and stops at its first step without it. |
+| `→ minted` | **unavailable.** `/initiative-intake` writes the registry entry in the orchestration repo. |
+
+So no skill moves an idea past `ready`. The workable ending today is to record
+`delivered` by hand once the specs are authored and validated — the templates
+describe `delivered` as following `specified`, so this path is not documented
+there yet. `/ideation-groom` will keep listing such ideas as ready to mint.
 
 ## 4. Initiative — `INIT-YYYY-NNNN`
 
@@ -123,7 +156,8 @@ on. Exists **only** on the orchestrator surface; the loop has no initiatives.
 
 ```mermaid
 stateDiagram-v2
-  [*] --> drafting: /initiative-intake — mints INIT, emits initiative_created
+  [*] --> drafting: /initiative-intake from a dossier — mints INIT, emits initiative_created
+  [*] --> planning: /initiative-intake from a handoff manifest (spec-before-mint)
   drafting --> validating: /spec-validation — validation_requested
   validating --> validating: validation FAILED — fix the specs, re-run from here
   validating --> planning: /spec-validation — validation_passed (PLANE HANDOFF)
@@ -151,6 +185,12 @@ stateDiagram-v2
 | `* → blocked` | any agent, on escalation |
 | `* → abandoned` | human, or pm cascading |
 | `blocked → <prior>` | human, by resolving the escalation |
+
+An initiative minted from a handoff manifest starts at `planning`: its specs
+were authored and validated under gates before the mint, the registry entry
+records `specs_source:`, and the pm decomposes from the manifest's component
+inventory instead of inferring one. `drafting` and `validating` are skipped, so
+`/spec-drafting` and `/spec-validation` never run for it.
 
 A failed validation run emits **no** transition — the initiative stays in
 `validating`, the human fixes the specs, and validation is re-run from there.
