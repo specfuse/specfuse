@@ -361,7 +361,7 @@ enforces a maximum page size to protect downstream query performance.
   Returns HTTP 201 on first creation and HTTP 200 on repeat (idempotent).
 - `GET /users/{user_id}/bookmarks` returns a paginated JSON array of bookmarked
   items. The default page size is 20 when `page_size` is absent; `page_size`
-  values over 100 are rejected with HTTP 400 and error code
+  values over 100 are rejected with HTTP 400 and error reason
   `page_size_over_limit`.
 - `DELETE /users/{user_id}/bookmarks/{item_id}` removes a bookmark. Returns
   HTTP 204 on success and HTTP 404 if the bookmark does not exist.
@@ -414,7 +414,7 @@ endpoint.
   objects when no `page_size` parameter is supplied.
 
 - **AC-4** — `GET /users/{user_id}/bookmarks?page_size=101` (operationId:
-  `listBookmarks`) returns HTTP 400 with error code `page_size_over_limit`.
+  `listBookmarks`) returns HTTP 400 with error reason `page_size_over_limit`.
 
 - **AC-5** — `DELETE /users/{user_id}/bookmarks/{item_id}` (operationId:
   `deleteBookmark`) returns HTTP 204 when the bookmark exists, and HTTP 404
@@ -572,7 +572,7 @@ Pre-validation review for INIT-2026-0042:
      - AC-2 → covers=create-repeat, commands=[POST twice], expected=200+object
      - AC-3 → covers=list-default-page, commands=[GET], expected=200+array≤20
      - AC-4 → covers=list-over-limit, commands=[GET ?page_size=101],
-       expected=400+error code
+       expected=400+error reason
      - AC-5 → covers=delete-exists-and-missing, commands=[DELETE],
        expected=204 or 404
 [x] Spec files: inventory-api-bookmarks.yaml parses as valid OpenAPI 3.0.3
@@ -593,7 +593,7 @@ Pre-validation review for INIT-2026-0042:
 | AC-1 | "AC-1: POST /users/{user_id}/bookmarks creates a bookmark and returns 201." | `curl -sS -X POST -H 'Content-Type: application/json' -d '{"item_id":"item-1"}' -o body.json -w '%{http_code}' http://localhost:<port>/users/user-1/bookmarks` | "HTTP status is 201; body.json contains item_id == 'item-1' and a valid created_at datetime." |
 | AC-2 | "AC-2: POST /users/{user_id}/bookmarks with an already-bookmarked item returns 200 (idempotent)." | `curl -sS -X POST ... [same item_id a second time] -o body.json -w '%{http_code}' ...` | "HTTP status is 200; body.json contains the same bookmark object as AC-1." |
 | AC-3 | "AC-3: GET /users/{user_id}/bookmarks returns up to 20 bookmarks when page_size is absent." | `curl -sS -o body.json -w '%{http_code}' http://localhost:<port>/users/user-1/bookmarks` | "HTTP status is 200; body.json parses as a JSON array with at most 20 elements." |
-| AC-4 | "AC-4: GET /users/{user_id}/bookmarks?page_size=101 returns 400 with error code page_size_over_limit." | `curl -sS -o body.json -w '%{http_code}' 'http://localhost:<port>/users/user-1/bookmarks?page_size=101'` | "HTTP status is 400; body.json contains error.code == 'page_size_over_limit'." |
+| AC-4 | "AC-4: GET /users/{user_id}/bookmarks?page_size=101 returns 400 with error reason page_size_over_limit." | `curl -sS -o body.json -w '%{http_code}' 'http://localhost:<port>/users/user-1/bookmarks?page_size=101'` | "HTTP status is 400; body.json contains errors[0].reason == 'page_size_over_limit'." |
 | AC-5 | "AC-5: DELETE /users/{user_id}/bookmarks/{item_id} returns 204 when the bookmark exists, 404 when it does not." | `curl -sS -X DELETE -w '%{http_code}' http://localhost:<port>/users/user-1/bookmarks/item-1` | "HTTP status is 204 (bookmark existed) or 404 (bookmark absent)." |
 
 **(b) Scope language is unambiguous per F3.32 guidance:**

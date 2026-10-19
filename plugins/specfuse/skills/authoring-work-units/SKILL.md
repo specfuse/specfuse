@@ -69,6 +69,10 @@ pre-existing unrelated state, a reasoned `status: blocked` with the evidence is 
 right move ([`../../rules/result-contract.md`](../../rules/result-contract.md)).
 *Prevents:* a doubtful pass that spends the gate's trust budget.
 
+When a trigger takes the form "block; the fix is a new unit," say the blocked
+session drafts that fix unit itself and names it in `blocked_next:` — the block
+costs no extra wait for a human or a later session to author it.
+
 ## 6. Sizing — one WU = one focused session's work
 
 A WU is crafted to land in a single fresh-session pass; the Ralph property (fresh
@@ -253,6 +257,12 @@ empty, recording `deliverable_missing`; a body-level `test -s` is advisory.
 
 *Prevents:* the zero-deliverable and partial-bundle hollow passes the
 no-code-written guard left open (`[FEAT-2026-0020/G2/hollow-pass-presence-gates]`).
+
+Don't hedge a `produces:` entry against your own uncertainty. If unsure a path
+will change, leave it out rather than listing it "just in case" — the runtime
+`produces_amended:` mechanism (`.specfuse/rules/result-contract.md`) exists to
+let a session correct the plan when it turns out to be wrong, not to absorb
+declarations an author never committed to in the first place.
 
 ## 14. Tracer bullet — stubs permitted only in the unit that turns the oracle green
 
