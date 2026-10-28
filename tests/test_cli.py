@@ -534,7 +534,7 @@ class TestDelegation(unittest.TestCase):
         sys.argv = self._orig_argv
 
     def _fake_component(self, rc=0, record=None):
-        """A stand-in component main. Nine of the twelve real ones take NO
+        """A stand-in component main. Most of the real ones take NO
         arguments and read sys.argv themselves, so the dispatcher has to swap
         sys.argv — this asserts it does."""
         def main():
@@ -603,6 +603,17 @@ class TestDelegation(unittest.TestCase):
         rc = cli.main(["lint", "--help", "--weird-flag"])
         self.assertEqual(rc, 0)
         self.assertEqual(seen, [["specfuse lint", "--help", "--weird-flag"]])
+
+    def test_layout_resolves_the_default_in_a_repo_without_layout_yml(self):
+        """The real component, not a stand-in: `specfuse layout get` must reach
+        `specfuse.loop.layout` and print the default a project with no
+        `.specfuse/layout.yml` gets (FEAT-2026-0224)."""
+        with tempfile.TemporaryDirectory() as repo:
+            out = io.StringIO()
+            with redirect_stdout(out):
+                rc = cli.main(["layout", "--repo", repo, "get", "decisions.style"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out.getvalue().strip(), "adr")
 
     def test_delegated_commands_appear_in_help(self):
         out = io.StringIO()

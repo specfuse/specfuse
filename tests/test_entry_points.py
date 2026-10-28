@@ -88,9 +88,18 @@ class TestEntryPoints(unittest.TestCase):
     def test_every_alias_maps_back_to_a_subcommand(self):
         """The alias table is derived from DELEGATED_COMMANDS, so the two cannot
         drift — assert the property rather than the derivation."""
-        self.assertEqual(len(cli.ALIAS_TO_SUBCOMMAND), len(cli.DELEGATED_COMMANDS))
+        with_alias = {sub for sub, (_t, flat, _h) in cli.DELEGATED_COMMANDS.items()
+                      if flat is not None}
+        self.assertEqual(set(cli.ALIAS_TO_SUBCOMMAND.values()), with_alias)
         for flat, subcommand in cli.ALIAS_TO_SUBCOMMAND.items():
             self.assertEqual(cli.DELEGATED_COMMANDS[subcommand][1], flat)
+
+    def test_a_subcommand_without_a_flat_command_gets_no_alias(self):
+        """`layout` is new in the suite, so it has no deprecated `specfuse-*` name —
+        neither in the alias map nor as a console script."""
+        self.assertIsNone(cli.DELEGATED_COMMANDS["layout"][1])
+        self.assertNotIn("specfuse-layout", cli.ALIAS_TO_SUBCOMMAND)
+        self.assertNotIn("specfuse-layout", _section("project.scripts"))
 
 
 class TestSuiteDependencies(unittest.TestCase):
