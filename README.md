@@ -105,6 +105,7 @@ The component tools are subcommands:
 | `specfuse lint` | lint a feature plan | `specfuse-loop` |
 | `specfuse monitor`, `monitor-lint` | the monitoring CLI and its linter | `specfuse-loop` |
 | `specfuse stats` | event statistics for a repo's loop | `specfuse-loop` |
+| `specfuse layout` | resolve the project's `.specfuse/layout.yml` (`get`, `check`, `link`) | `specfuse-loop` |
 | `specfuse authoring` | design / validate / bundle specs | `specfuse-authoring` |
 | `specfuse pm` | multi-repo initiative coordination | `specfuse-orchestrator` |
 | `specfuse poller`, `runner` | the orchestrator's poller and agent runner | `specfuse-orchestrator` |

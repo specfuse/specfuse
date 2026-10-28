@@ -96,12 +96,16 @@ PLUGIN_KEYS = {
 
 # subcommand -> (entry target, the flat command it replaces, help text)
 #
+# The flat command is None for a subcommand that never had one: a new tool gets
+# no `specfuse-*` alias, since an alias born deprecated only adds a second name to
+# retire in 1.0.0.
+#
 # Each target is a component's console-script main. The umbrella dispatches to
 # them so the suite needs ONE name on PATH: the flat `specfuse-*` commands share
 # their names with the standalone packages' scripts, so two installs can fight
 # over them and the loser's upgrades silently change nothing about what runs. A
 # single `specfuse` shim cannot collide with anything.
-DELEGATED_COMMANDS: dict[str, tuple[str, str, str]] = {
+DELEGATED_COMMANDS: dict[str, tuple[str, str | None, str]] = {
     "run": ("specfuse.loop.loop:main", "specfuse-loop",
             "run the gate-cycle driver"),
     "lint": ("specfuse.loop.lint_plan:main", "specfuse-lint",
@@ -114,6 +118,8 @@ DELEGATED_COMMANDS: dict[str, tuple[str, str, str]] = {
               "event statistics for a repo's loop"),
     "agent": ("specfuse.agent.run:main", "specfuse-agent",
               "run the autonomous conductor over a whole repo"),
+    "layout": ("specfuse.loop.layout:main", None,
+               "resolve the project's .specfuse/layout.yml"),
     "authoring": ("specfuse.authoring.cli:_run", "specfuse-authoring",
                   "the spec-authoring kit (design/validate/bundle)"),
     "pm": ("specfuse.orchestrator.cli:main", "specfuse-orchestrator",
@@ -133,6 +139,7 @@ DELEGATED_COMMANDS: dict[str, tuple[str, str, str]] = {
 # subcommand. Built from one table so the two can never drift.
 ALIAS_TO_SUBCOMMAND: dict[str, str] = {
     flat: sub for sub, (_target, flat, _help) in DELEGATED_COMMANDS.items()
+    if flat is not None
 }
 
 # Set to silence the deprecation notice explicitly.
@@ -1317,8 +1324,8 @@ def build_parser() -> argparse.ArgumentParser:
     # interpret the component's own flags. REMAINDER keeps them working as a
     # fallback if that interception is ever bypassed.
     for name, (target, flat, help_text) in DELEGATED_COMMANDS.items():
-        delegated = sub.add_parser(name, help=f"{help_text} (was `{flat}`)",
-                                   add_help=False)
+        was = f" (was `{flat}`)" if flat else ""
+        delegated = sub.add_parser(name, help=f"{help_text}{was}", add_help=False)
         delegated.add_argument("rest", nargs=argparse.REMAINDER)
         delegated.set_defaults(
             func=lambda a, *, _t=target, _n=name, **kw: _delegate(
