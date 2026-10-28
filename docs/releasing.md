@@ -13,7 +13,7 @@ umbrella does not need to re-release for a new `specfuse-loop` /
 | Distribution | Repo | Ships | Console commands |
 |---|---|---|---|
 | `specfuse` (umbrella) | `specfuse/specfuse` | the CLI + the whole suite as hard deps | `specfuse` (+ 11 deprecated aliases) |
-| `specfuse-loop` | `specfuse/loop` | the gate-cycle driver, scaffold, monitoring | `specfuse run`, `lint`, `monitor`, `monitor-lint`, `stats` |
+| `specfuse-loop` | `specfuse/loop` | the gate-cycle driver, scaffold, monitoring, layout resolver | `specfuse run`, `lint`, `monitor`, `monitor-lint`, `stats`, `layout` |
 | `specfuse-authoring` | `specfuse/authoring` | the spec-authoring kit | `specfuse authoring` |
 | `specfuse-orchestrator` | `specfuse/orchestrator` | multi-repo coordination | `specfuse pm`, `poller`, `runner`, `validate-event`, `validate-frontmatter` |
 
