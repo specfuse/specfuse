@@ -63,7 +63,22 @@ CONSUMERS = (
 # entries here waived specfuse-loop's pre-#135 event schemas while it caught up;
 # loop 0.12.1 re-vendored (specfuse/loop#1433) and the floor in pyproject.toml is
 # what keeps them from coming back.
-KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {}
+_KEYED_IDS_LOOP = ("Core adopted the optional project key in feature IDs (FEAT-<KEY>-YYYY-NNNN, "
+     "specfuse/specfuse#232) ahead of the consumer. Clears when a specfuse-loop "
+     "release carries the re-vendored schemas (specfuse/loop FEAT-2026-0247/T07).")
+_KEYED_IDS_ORCHESTRATOR = ("Core adopted the optional project key in feature IDs (FEAT-<KEY>-YYYY-NNNN, "
+     "specfuse/specfuse#232) ahead of the consumer. Clears when a "
+     "specfuse-orchestrator release re-vendors the schemas.")
+KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {
+    ("specfuse-loop", "event.schema.json"): _KEYED_IDS_LOOP,
+    ("specfuse-loop", "events/spec_issue_resolved.schema.json"): _KEYED_IDS_LOOP,
+    ("specfuse-loop", "events/spec_issue_routed.schema.json"): _KEYED_IDS_LOOP,
+    ("specfuse-loop", "events/spec_validated.schema.json"): _KEYED_IDS_LOOP,
+    ("specfuse-orchestrator", "event.schema.json"): _KEYED_IDS_ORCHESTRATOR,
+    ("specfuse-orchestrator", "events/spec_issue_resolved.schema.json"): _KEYED_IDS_ORCHESTRATOR,
+    ("specfuse-orchestrator", "events/spec_issue_routed.schema.json"): _KEYED_IDS_ORCHESTRATOR,
+    ("specfuse-orchestrator", "events/spec_validated.schema.json"): _KEYED_IDS_ORCHESTRATOR,
+}
 
 
 def _vendored_dir(import_name: str, subpath: str) -> Path | None:
@@ -162,11 +177,19 @@ class TestCorrelationIdWideningIsAdditive(unittest.TestCase):
         "FEAT-2026-0042/T09H2",
         "FEAT-2026-0042/G1-RETRO",
         "FEAT-2026-0042/G2-CLOSE-INTERMEDIATE",
+        "FEAT-ACME-2026-0042",        # optional project key (#232)
+        "FEAT-ACME-2026-0042/T09H",
+        "FEAT-AB12-2026-0042/G1-CLOSE",
     )
     STILL_REFUSED = (
         "FEAT-2026-0042/G1-FOO",      # undocumented closing name
         "FEAT-26-0042",               # short year
         "BUG-2026-0042",              # unknown namespace
+        "FEAT-acme-2026-0042",        # key must be uppercase
+        "FEAT-A-2026-0042",           # key too short
+        "FEAT-TOOLONG-2026-0042",     # key too long
+        "FEAT-1ABC-2026-0042",        # key must start with a letter
+        "INIT-ACME-2026-0011/F02",    # INIT- takes no key
     )
 
     def setUp(self):
