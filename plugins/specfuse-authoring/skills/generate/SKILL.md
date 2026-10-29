@@ -14,7 +14,7 @@ Generate code and documentation artifacts from the API specifications, one artif
 
 ## Prerequisites — verify before running
 
-1. `specfuse` is on PATH (`pipx install specfuse`, or `uv tool install specfuse`). The generator itself is not a file in the project — the CLI resolves and checksum-verifies the version pinned in `generator.lock` on demand. On a standalone kit install the deprecated flat `specfuse-authoring` command still works; drop the `specfuse ` prefix from the commands below.
+1. `specfuse` is on PATH (`pipx install specfuse`, or `uv tool install specfuse`). The generator itself is not a file in the project — the CLI resolves and checksum-verifies the version pinned in `generator.lock` (or the project's `.specfuse/generator.lock`, which takes precedence) on demand. On a standalone kit install the deprecated flat `specfuse-authoring` command still works; drop the `specfuse ` prefix from the commands below.
 2. The project config file (typically `<project>-project.json`) exists in the project root
 3. Specifications are valid — if not recently validated, run `/validate` first
 
@@ -33,8 +33,6 @@ Artifact groups are declared in the project config's `groups` array; generate th
    ```
    The word `generate` appears twice on purpose: `specfuse authoring generate` launches the pinned generator and passes everything after it through verbatim, so the generator's own `generate` command must follow. Without it the generator prints `Unknown option: --group` and its usage text, and generates nothing.
 5. **Run language post-steps** for groups that need them. Dart: the generator writes `part '*.g.dart'` / `part '*.freezed.dart'` directives but does not run `source_gen`, so run `dart pub get && dart run build_runner build --delete-conflicting-outputs` in the generated package before analysing it.
-6. **Generate documentation (Markdown)** — if a Markdown group is selected, run `./scripts/specfuse/generate-scenario-docs.sh` instead of step 4 for it. It bundles the specs, then generates the two Markdown groups the scaffold defines, then adds cross-links and the index:
-   - `Documentation - Scenarios` → `scenarioDocument`, `scenarioIndex` (output: `./api/docs`)
-   - `Documentation - Technical References` → `recipeDocumentation`, `entityDiagram`, `eventCatalog`, `channelTopology`, `docsIndex` (output: `./docs/generated`)
+6. **Generate documentation (Markdown)** — if a Markdown group is selected, run `./scripts/specfuse/generate-scenario-docs.sh` instead of step 4 for it. It bundles the specs, generates every group of the project file with `"language": "markdown"` (whatever their names), then adds cross-links and the scenario index. With `--clean` it first removes each Markdown group's `destination`, except one outside the project, the project root, or a folder holding `api/docs/flows/` or `api/specs/`; scenario pages under `api/docs/flows/` are deleted file by file instead. It stops with an error when the project file has no Markdown group.
 
 Report the outcome of each group: generator exit code `0` is success, `3` is a generation failure with a structured error, `1`/`2` are validation or system errors. If generation fails, analyze the error output and suggest fixes. For each group written into another repo, name the repo and remind the user that the regen is reviewed and merged there before `.specfuse/state` baselines are advanced.
