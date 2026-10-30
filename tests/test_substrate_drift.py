@@ -65,7 +65,12 @@ CONSUMERS = (
 # what keeps them from coming back.
 # The keyed-ID waivers (specfuse/specfuse#232) cleared with specfuse-loop 0.31.0
 # and specfuse-orchestrator 0.9.0, which carry the re-vendored schemas.
-KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {}
+_KEYED_IDS_MINT = ("Core widened feature-mint's correlation_id to the keyed feature-ID "
+     "grammar (specfuse/specfuse#232, specfuse/orchestrator#111) ahead of the consumer. Clears "
+     "when a specfuse-orchestrator release re-vendors feature-mint.schema.json.")
+KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {
+    ("specfuse-orchestrator", "feature-mint.schema.json"): _KEYED_IDS_MINT,
+}
 
 
 def _vendored_dir(import_name: str, subpath: str) -> Path | None:

@@ -14,8 +14,8 @@
   "properties": {
     "correlation_id": {
       "type": "string",
-      "description": "Feature- or initiative-level correlation ID: FEAT-YYYY-NNNN (legacy feature) or INIT-YYYY-NNNN (initiative). Sub-unit IDs (TNN/FNN) are not valid here. Format and minting rules: rules/correlation-ids.md.",
-      "pattern": "^(FEAT|INIT)-\\d{4}-\\d{4}$"
+      "description": "Feature- or initiative-level correlation ID: FEAT-YYYY-NNNN (legacy feature), FEAT-<KEY>-YYYY-NNNN (feature in a repository with a project key, #232) or INIT-YYYY-NNNN (initiative). Sub-unit IDs (TNN/FNN) are not valid here. Format and minting rules: rules/correlation-ids.md.",
+      "pattern": "^(FEAT-(?:[A-Z][A-Z0-9]{1,5}-)?|INIT-)\\d{4}-\\d{4}$"
     },
     "state": {
       "type": "string",
