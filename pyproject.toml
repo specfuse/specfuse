@@ -56,17 +56,29 @@ classifiers = [
 # one copy, rejected by the other, with the rule documenting them sitting
 # byte-identical beside both (specfuse/loop#1433).
 #
-# specfuse-loop>=0.30.0: `layout` delegates to `specfuse.loop.layout:main`, which
+# specfuse-loop 0.30.0: `layout` delegates to `specfuse.loop.layout:main`, which
 # first exists in 0.30.0 (FEAT-2026-0224). Older loops make `specfuse layout` an
 # ImportError at run time.
+#
+# specfuse-loop>=0.31.0 and specfuse-orchestrator>=0.10.0: the same correctness
+# argument as 0.12.1, for project-keyed feature IDs (FEAT-<KEY>-YYYY-NNNN, #232).
+# Core's rule and event schemas admit the key; loop <0.31.0 vendors the pre-#232
+# copies, so `specfuse init` would again write two schema sets that disagree on
+# which feature IDs are legal. Orchestrator <0.10.0 rejects keyed IDs in its own
+# schemas and vendors the pre-#238 feature-mint schema, so a feature core can mint
+# fails the orchestrator's registry validation (specfuse/orchestrator#111).
+#
+# specfuse-authoring>=0.31.0: raised with the other two to the current release on
+# 2026-10-30, so a fresh install starts from one consistent suite; no symbol this
+# package calls needs it.
 #
 # Earlier reasons, all still true: `agent` delegates to `specfuse.agent.run:main`
 # (first exists in 0.12.0); the CLI's init/upgrade calls `specfuse.loop.scaffold`
 # (0.3.0); it re-exports the monitor/stats mains (0.9.3).
 dependencies = [
-  "specfuse-loop>=0.30.0",
-  "specfuse-orchestrator>=0.4.1",
-  "specfuse-authoring>=0.5.6",
+  "specfuse-loop>=0.31.0",
+  "specfuse-orchestrator>=0.10.0",
+  "specfuse-authoring>=0.31.0",
 ]
 
 # `dev` is the ONLY extra left. It describes what developing this package needs,
