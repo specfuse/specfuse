@@ -63,17 +63,9 @@ CONSUMERS = (
 # entries here waived specfuse-loop's pre-#135 event schemas while it caught up;
 # loop 0.12.1 re-vendored (specfuse/loop#1433) and the floor in pyproject.toml is
 # what keeps them from coming back.
-# The keyed-ID waivers for specfuse-loop (specfuse/specfuse#232) cleared with
-# specfuse-loop 0.31.0, which carries the re-vendored schemas.
-_KEYED_IDS_ORCHESTRATOR = ("Core adopted the optional project key in feature IDs (FEAT-<KEY>-YYYY-NNNN, "
-     "specfuse/specfuse#232) ahead of the consumer. Clears when a "
-     "specfuse-orchestrator release re-vendors the schemas.")
-KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {
-    ("specfuse-orchestrator", "event.schema.json"): _KEYED_IDS_ORCHESTRATOR,
-    ("specfuse-orchestrator", "events/spec_issue_resolved.schema.json"): _KEYED_IDS_ORCHESTRATOR,
-    ("specfuse-orchestrator", "events/spec_issue_routed.schema.json"): _KEYED_IDS_ORCHESTRATOR,
-    ("specfuse-orchestrator", "events/spec_validated.schema.json"): _KEYED_IDS_ORCHESTRATOR,
-}
+# The keyed-ID waivers (specfuse/specfuse#232) cleared with specfuse-loop 0.31.0
+# and specfuse-orchestrator 0.9.0, which carry the re-vendored schemas.
+KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {}
 
 
 def _vendored_dir(import_name: str, subpath: str) -> Path | None:
