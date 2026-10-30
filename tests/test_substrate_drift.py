@@ -64,13 +64,9 @@ CONSUMERS = (
 # loop 0.12.1 re-vendored (specfuse/loop#1433) and the floor in pyproject.toml is
 # what keeps them from coming back.
 # The keyed-ID waivers (specfuse/specfuse#232) cleared with specfuse-loop 0.31.0
-# and specfuse-orchestrator 0.9.0, which carry the re-vendored schemas.
-_KEYED_IDS_MINT = ("Core widened feature-mint's correlation_id to the keyed feature-ID "
-     "grammar (specfuse/specfuse#232, specfuse/orchestrator#111) ahead of the consumer. Clears "
-     "when a specfuse-orchestrator release re-vendors feature-mint.schema.json.")
-KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {
-    ("specfuse-orchestrator", "feature-mint.schema.json"): _KEYED_IDS_MINT,
-}
+# and specfuse-orchestrator 0.9.0, which carry the re-vendored schemas; the
+# feature-mint waiver (#238) with specfuse-orchestrator 0.10.0.
+KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {}
 
 
 def _vendored_dir(import_name: str, subpath: str) -> Path | None:
