@@ -181,17 +181,10 @@ class TestProvisionedSubset(unittest.TestCase):
     # 0.22.1 carries the re-vendored rule, the guard failed exactly as
     # written, and the entry is deleted. Every publish PR was blocked on it.
     # Keyed feature IDs (specfuse/specfuse#232): core widened the grammar and
-    # event schemas ahead of the loop. Clears when a specfuse-loop release
-    # carries the re-vendored copies (specfuse/loop FEAT-2026-0247/T07);
-    # `test_no_scaffold_waiver_outlives_its_cause` fails that day, which is the
-    # signal to delete these entries.
-    KNOWN_SCAFFOLD_DIVERGENCES: set[str] = {
-        "rules/correlation-ids.md",
-        "schemas/event.schema.json",
-        "schemas/events/spec_issue_resolved.schema.json",
-        "schemas/events/spec_issue_routed.schema.json",
-        "schemas/events/spec_validated.schema.json",
-    }
+    # event schemas ahead of the loop, and five entries waived the gap.
+    # specfuse-loop 0.31.0 carries the re-vendored copies, the guard failed
+    # exactly as written, and the entries are deleted.
+    KNOWN_SCAFFOLD_DIVERGENCES: set[str] = set()
 
     def _scaffold_seed(self) -> Path:
         try:
