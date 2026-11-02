@@ -101,7 +101,7 @@ Verify that all required extensions are present and well-formed.
 | `x-domain` | Yes | A valid project domain or `cross-domain` |
 | `x-actors` | Yes | At least one actor; each has `role` registered in the OpenAPI `info.x-roles` |
 | `x-doc` | Yes | At minimum `summary` present |
-| `x-mcp` | Yes | `exposed` explicitly set |
+| No `x-mcp` | Retired | Delete it (`X_MCP_RETIRED`); nothing reads it |
 | `x-setup` | Recommended | `recipe` field present when fixtures are needed |
 | `x-as` on every step | Yes | Every step has actor binding |
 
@@ -114,7 +114,7 @@ Verify that all required extensions are present and well-formed.
 | `x-domain` | Yes | Same as scenarios |
 | No `x-actors` | Forbidden | Recipes run as implicit `$system` |
 | No `x-setup` | Forbidden | Recipes compose via `extends` |
-| No `x-mcp` | Forbidden | Recipes are not MCP tools |
+| No `x-mcp` | Retired | Delete it (`X_MCP_RETIRED`); nothing reads it |
 | No `x-as` on steps | Forbidden | Recipe steps run as `$system` |
 | No `x-ui` on steps | Forbidden | No user-facing interactions in recipes |
 

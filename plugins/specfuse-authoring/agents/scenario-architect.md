@@ -52,7 +52,6 @@ The `/design-scenario` command MUST provide the following context when spawning 
 | `failureModes` | Explicitly elicited failure paths (negative tests, edge cases) |
 | `uiActions` | Natural-language UI actions and expected visual outcomes per step |
 | `tags` | Suggested tags (e.g., `critical-path`) |
-| `mcpExposure` | Whether this scenario should be exposed as an MCP tool |
 | `setupRecipe` | Pre-selected recipe file stem; if absent, agent selects from `existingRecipes` |
 | `setupInputs` | Values to pass to the recipe's inputs |
 
@@ -207,12 +206,6 @@ x-doc:
   personas: [{persona-list}]                # Derived from actor descriptions
   businessOutcome: "{why-this-matters}"     # Derived from intent
 
-x-mcp:
-  exposed: false                # Default false unless mcpExposure input says otherwise
-  # When exposed: true, also generate:
-  #   toolName: {domain}-{kebab-case-verb-phrase}   # Globally unique
-  #   description: "{MCP-facing description}"
-
 x-actors:
   {actorKey}:
     role: {Role}
@@ -231,7 +224,7 @@ Rules for this section:
 - `x-version` is REQUIRED. Always `current: 1`, `status: draft` for new scenarios.
 - `x-domain` is REQUIRED. Must match the confirmed domain.
 - `x-doc` is REQUIRED. Derive `summary` from the PM's intent.
-- `x-mcp` is REQUIRED. Default to `exposed: false`. When `exposed: true`, `toolName` must be kebab-case and globally unique.
+- Do NOT write `x-mcp`. It is retired (generator 0.24.0) and exposes no tool.
 - `x-actors` is REQUIRED on scenarios. Every actor key is camelCase. Every role is from the closed set. Bind actors to recipe outputs via `ref: $setup.outputs.X` when a recipe is used.
 - `x-setup` is OPTIONAL but strongly recommended. Omit only if the scenario truly needs no pre-seeded fixtures.
 
@@ -445,7 +438,6 @@ The generated file MUST satisfy all of the following:
 | `x-version` | Document | Always | `current` (integer) + `status` (draft/stable/deprecated) |
 | `x-domain` | Document | Always | Valid project domain or `cross-domain` |
 | `x-doc` | Document | Always | At minimum `summary` |
-| `x-mcp` | Document | Always | At minimum `exposed: false` |
 | `x-actors` | Document | Scenarios only | At least one actor with valid role |
 | `x-setup` | Document | When fixtures needed | `recipe` field is required within |
 | `x-as` | Step | All scenario steps | Valid `$actorKey` reference |
@@ -574,7 +566,6 @@ Before returning the generated YAML, verify every item:
 - [ ] `x-version` present with `current: 1` and `status: draft`
 - [ ] `x-domain` present and valid
 - [ ] `x-doc.summary` present and derived from PM intent
-- [ ] `x-mcp.exposed` explicitly set (default: `false`)
 - [ ] `x-actors` present with at least one actor, all roles from closed set
 - [ ] `x-setup.recipe` set when fixtures are needed; recipe exists in inventory
 - [ ] Every step has `stepId` (kebab-case) and `x-as` (valid actor reference)

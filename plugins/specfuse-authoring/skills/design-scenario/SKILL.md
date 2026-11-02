@@ -207,7 +207,7 @@ Spawn the `scenario-validator` subagent (provided by the specfuse-authoring plug
 3. Returns a structured validation report
 
 Process the report:
-- **Auto-fix mechanical issues silently**: missing `x-version` defaults, missing `x-mcp: { exposed: false }`, casing fixes, ISO duration format corrections. Apply these to the YAML without asking the user.
+- **Auto-fix mechanical issues silently**: missing `x-version` defaults, deleting a retired `x-mcp` block, casing fixes, ISO duration format corrections. Apply these to the YAML without asking the user.
 - **Surface judgment calls to the user**: unresolved operationIds, invalid actor roles, event name mismatches, granularity alerts. Present each issue and ask how to proceed.
 - **Re-validate after fixes** until the report shows zero errors.
 
@@ -278,7 +278,7 @@ Verify all of these before reporting completion:
 - [ ] `x-version` present with `current: 1` and `status: draft`
 - [ ] `x-domain` present and matches the confirmed domain
 - [ ] `x-doc.summary` present and PM-readable
-- [ ] `x-mcp.exposed` explicitly set
+- [ ] No `x-mcp` block (retired at generator 0.24.0)
 - [ ] `x-actors` present with at least one actor, all roles from the closed set
 - [ ] `x-as` present on every scenario step
 - [ ] `x-setup` recipe exists and provides all needed outputs (or gap flagged)
