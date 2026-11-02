@@ -46,7 +46,7 @@ Ask the user:
    > - **C.** Add step(s) to a workflow
    > - **D.** Remove step(s) from a workflow
    > - **E.** Change actors (add, remove, rename, change role)
-   > - **F.** Update extensions (x-doc, x-mcp, x-ui, tags, x-setup, etc.)
+   > - **F.** Update extensions (x-doc, x-ui, tags, x-setup, etc.)
    > - **G.** Version bump or deprecation
 
    The user may also describe the change in plain language. Map it to the appropriate handler.
@@ -184,16 +184,16 @@ Add, remove, rename, or change the role of actors.
 Update any workflow-level or step-level extension value.
 
 **Clarify:**
-- Which extension to update (e.g., `x-doc.summary`, `x-mcp.exposed`, `tags`, `x-setup.recipe`, step-level `x-ui`).
+- Which extension to update (e.g., `x-doc.summary`, `tags`, `x-setup.recipe`, step-level `x-ui`).
 - The new value.
 
 **Apply:**
 1. Read the current value and present it for reference.
 2. Apply the update.
 3. For `x-setup.recipe` changes: verify the new recipe exists and provides the outputs the scenario needs. Check that all `$setup.outputs.X` references in `x-actors.*.ref` and step parameters still resolve.
-4. For `x-mcp.exposed: true`: ensure `toolName` and `description` are provided. Verify `toolName` is globally unique by scanning other scenario files.
+4. If the file declares `x-mcp`, delete the block: it is retired at generator 0.24.0 and exposes no tool. Tool exposure lives in the MCP manifest.
 5. For `tags` changes: note that adding `critical-path` means this scenario will block PR merges once test generation is in place.
-6. Extension-only updates (typos, description rewording) do NOT warrant a version bump. Semantic changes (different recipe, changed `x-mcp` exposure) DO.
+6. Extension-only updates (typos, description rewording) do NOT warrant a version bump. Semantic changes (different recipe) DO.
 
 ---
 
@@ -259,7 +259,6 @@ After applying changes, determine whether a version bump is warranted. Present t
 - `x-doc` text changes (summary, tutorialNote, businessOutcome)
 - `x-ui` action text rewording
 - Tag additions
-- `x-mcp` description changes
 - Typo fixes in descriptions or summaries
 
 Present the recommendation:

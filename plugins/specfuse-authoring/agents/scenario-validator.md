@@ -170,9 +170,7 @@ Every error is classified as **auto-fixable** (mechanical, unambiguous fix) or *
 | Issue | Proposed Fix |
 |---|---|
 | Missing `x-version` | Add `x-version: { current: 1, status: draft }` |
-| Missing `x-mcp` | Add `x-mcp: { exposed: false }` |
-| Missing `x-mcp.exposed` | Add `exposed: false` |
-| `x-mcp.toolName` not kebab-case | Convert to kebab-case |
+| `x-mcp` present | Delete the block (`X_MCP_RETIRED`; nothing reads it) |
 | `x-as` missing `$` prefix | Add `$` prefix |
 | ISO duration format wrong | Fix format (e.g., `10s` -> `PT10S`) |
 | `x-ui.platform` casing wrong | Fix casing (e.g., `Web` -> `web`) |
@@ -197,7 +195,6 @@ Every error is classified as **auto-fixable** (mechanical, unambiguous fix) or *
 | `x-recipe.extends` depth > 6 | Composition restructuring needed. |
 | >= 80% step overlap with existing scenario | Granularity decision: merge, split, or override. |
 | 60-80% step overlap | Ambiguous zone -- user decides. |
-| `x-mcp.toolName` collision | Renaming decision requires domain context. |
 | `x-emits` at document root | Structural misunderstanding -- user needs to use `x-async.emit`. |
 | Recipe/scenario extension mixing | File purpose is ambiguous -- user decides. |
 | File homogeneity violation | Workflows mixed categories -- user must restructure. |
@@ -294,12 +291,6 @@ Every error is classified as **auto-fixable** (mechanical, unambiguous fix) or *
 | Check | Category | Auto-Fixable? |
 |---|---|---|
 | E13: Step overlap < 80% (error), 60-80% (review) | Scenario overlap | No -- granularity is a design decision |
-
-#### Group F -- Global Uniqueness (1 check)
-
-| Check | Category | Auto-Fixable? |
-|---|---|---|
-| F14: `x-mcp.toolName` unique | Name collision | No -- renaming requires domain context |
 
 ---
 

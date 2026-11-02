@@ -33,7 +33,6 @@ Recipes are Arazzo workflows with the `x-recipe` extension. They are NOT scenari
 - `x-actors` -- recipes run as the implicit `$system` actor mapped to `Admin`
 - `x-as` -- every recipe step runs as `$system` (no actor binding on steps)
 - `x-setup` -- recipes compose via `extends`, not `$setup`
-- `x-mcp` -- recipes are infrastructure, not user-facing tools
 - `x-ui` -- no user-facing interactions in fixture setup
 
 ## Input clarification
@@ -199,7 +198,7 @@ These are validator-enforced. The command must check them before generating:
 | Max depth 6 | Count the full chain from root to this recipe. Depth > 6 = error. |
 | No cycles | A recipe cannot extend itself or form a circular chain (A -> B -> A) |
 | No output collisions | If a parent and child both declare an output with the same name, the validator errors. The flat namespace keeps `$setup.outputs.X` unambiguous. |
-| No scenario extensions | Recipes must NOT have `x-actors`, `x-mcp`, `x-setup`, or `x-ui` |
+| No scenario extensions | Recipes must NOT have `x-actors`, `x-setup`, or `x-ui` |
 | Implicit `$system` actor | All steps run as `$system` mapped to `Admin`. No `x-as` on steps. |
 | `$setup` forbidden | Recipes cannot reference `$setup`. Use `$steps.parent-setup.outputs.X` for parent outputs. |
 
@@ -231,7 +230,7 @@ Verify all of these before reporting completion:
 - [ ] No output namespace collisions with parent outputs
 - [ ] Output contract clearly documented (both new outputs and inherited ones noted)
 - [ ] `sourceDescriptions[].url` is a correct relative path to `openapi.yaml`
-- [ ] No forbidden extensions present (`x-actors`, `x-mcp`, `x-setup`, `x-ui`, `x-as`)
+- [ ] No forbidden extensions present (`x-actors`, `x-setup`, `x-ui`, `x-as`)
 - [ ] No hardcoded dates -- date tokens used in inputs and step payloads
 - [ ] No language-specific references
 - [ ] Validation passes with zero errors
