@@ -150,12 +150,62 @@ pattern table; discovery cannot tell a build-injected stamp from a constant
 string, so the table must name only per-deployment stamp mechanisms). With
 evidence, Step 2's mapping also proposes `http-status-regression` with
 `deploy_signal: {kind: app-version}` and a `window_after_deploy`; without it, no
-check is proposed and the component gets one `version-stamping` finding. **Findings are reported as
+check is proposed and the component gets one `version-stamping` finding.
+
+The `data-store-signals` property is per-component and applies to any component
+whose own scope shows a data store — a connection setting, a data-access
+library, a migrations directory. **The monitor never connects to a data store**
+(the rule's data-store section): never propose a direct database check, a
+data-store provider, or an `invariant` whose `query` reads the store. Instead,
+check the component's code for the owned signals it should emit as telemetry —
+backlogs in its tables (for the planned `backlog-stalled` check type, #3576),
+business-state invariants over its persisted data (orphaned rows, records stuck
+past a deadline), and migration state (the migration the release expects versus
+the one the store reports, both read by the existing `invariant` check). Where
+the evidence cannot say, ask (Step 3, question 6). Each owned signal the
+component does not emit is a `data-store-signals` finding — a design-for-diagnosis
+gap the component closes by emitting it, not a check to draft. Platform-health
+signals (CPU and throughput units, storage, connections, deadlocks, replication
+lag, failover) are **out of scope**: list each one the operator raises, or the
+component's evidence suggests, under the report's out-of-scope section so the
+operator routes it to infrastructure alerting. The test is whether the fix would
+be a pull request on the component. **Findings are reported as
 `WARN`, never `ERROR`.** A populated codebase that predates the design-for-diagnosis
 rule violates it everywhere by construction, so an `ERROR` predicate would be
 unsatisfiable on real input and would force the operator to fix unrelated
 instrumentation gaps before they could even see a draft. The audit informs the
 operator about diagnosability gaps; it never blocks the draft from being produced.
+
+**Data-store work queues and `backlog-emission` (#3576).** Step 1 also looks,
+inside each deployable's scope, for work queues the component keeps in its own
+data store rather than in a broker: a transactional outbox table, a job or
+pending-work table, a poller loop draining one. Each is a `backlog` trigger in
+the project's pattern table and becomes one entry in the record's `backlogs`
+list. `dlq` and `queue-stalled` cannot see such a queue (its rows never reach
+the broker), and `heartbeat` only proves the poller fired. For each component
+with backlogs, check its own code for the rule's backlog-snapshot emission — a
+`BacklogSnapshot` custom event per backlog, carrying `backlogName`,
+`oldestPendingAgeSeconds` and optionally `pendingCount`, under the component's
+role name (the marker is that event name unless the pattern table names the
+project's own emitter). With the emission, propose one `backlog-stalled` check
+with one target per backlog, `name` set to the emitted `backlogName` and
+`stall_after: 15m` as a starting value. Without it, propose no check and report
+one `backlog-emission` finding naming the backlogs: a target over telemetry
+nothing emits would never fire. The reference behaviour is
+`suggest_checks` / `audit_diagnosability` in
+`tests/test_derive_monitoring_discovery.py`.
+
+**Dependency regression.** A component — HTTP-serving or not — that shows both
+a per-deployment version stamp and a recorded data-store dependency (a client
+of the store it owns, matched in its own scope by the project's
+`data_store_markers` pattern table; the record's `data_store` field) also gets
+`dependency-regression` with `deploy_signal: {kind: app-version}` and a
+`window_after_deploy`. Leave `dependency_types` at its default (every type the
+component records) unless the operator narrows it: the store's type name is
+whatever the telemetry records, not something discovery can know. A component
+with a data store and no version stamp gets no check and a `version-stamping`
+finding naming `dependency-regression`. The check is failures only, by
+decision (#3577): never propose a latency threshold for it.
 
 ### Step 3 — Ask only what the repo cannot answer
 
@@ -198,6 +248,16 @@ together with the evidence that motivated each:
 5. **Per-component dial loosening** beyond the conservative defaults
    (`runner`/`diagnose`/`autofix`), if the operator already has enough confidence
    in a check to loosen it.
+6. **For a component with a data store, which owned signals it emits** —
+   backlogs, business-state invariants, migration state — when Step 2's evidence
+   could not tell. An answer of "none" is a `data-store-signals` finding, never
+   a prompt to draft a check that reads the store.
+7. **Each proposed `backlog-stalled` target's thresholds** — confirm or change
+   the starting `stall_after: 15m` (how old the oldest pending item may get
+   before it counts as stalled), and whether to add a `silent_after` (how long
+   without any snapshot before the reporter counts as dead; a few times the
+   emission interval). How long is too long is operator judgement, not
+   evidence.
 
 **Forbidden questions** — anything answerable by reading a file. "What components
 does this project deploy?" when a deployment manifest names every one is a skill
@@ -386,6 +446,10 @@ findings:
 ## Diagnosability audit (WARN only)
 - <component>: <property> — <finding, or "none">
 
+## Out of scope (route to infrastructure alerting)
+- <component>: <platform-health signal, e.g. replication lag> — not a component
+  fix; route to the platform's infrastructure alerting — or "none raised"
+
 ## Credential reuse (WARN only, heuristic)
 - <ENV_VAR_NAME>: credential-reuse — read by the application at <file:line>[, ...];
   suggest <MONITOR_ENV_VAR_NAME>, provisioned read-only per
@@ -436,6 +500,9 @@ see `tests/test_derive_monitoring_discovery.py`'s boundary tests.
   reports the need — it never edits them as part of its work.
 - It does not invent an `invariant` query, a credential value, or a component the
   repo has no evidence for.
+- It does not draft a check that connects to a component's data store. Data-store
+  signals the component owns are reported as `data-store-signals` gaps for the
+  component to emit; data-store platform health is named as out of scope.
 - It does not create the `.claude/skills/derive-monitoring` discovery symlink —
   that is the documented operator prerequisite above.
 - It does not auto-run from `init.sh`. `init.sh` stays deterministic and
